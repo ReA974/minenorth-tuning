@@ -1,4 +1,6 @@
 {
-  "block.minenorthbanc.banc_puissance": "Dyno",
-  "item.minenorthbanc.banc_puissance": "Dyno"
+ "block.minenorthbanc.banc_puissance": "Dyno",
+ "item.minenorthbanc.banc_puissance": "Dyno",
+ "block.minenorthbanc.ordinateur_banc": "Tuning computer",
+ "item.minenorthbanc.ordinateur_banc": "Tuning computer"
 }

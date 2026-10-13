@@ -1,0 +1,20 @@
+{
+ "variants": {
+  "facing=south": {
+   "model": "minenorthbanc:block/ordinateur_banc",
+   "y": 0
+  },
+  "facing=west": {
+   "model": "minenorthbanc:block/ordinateur_banc",
+   "y": 90
+  },
+  "facing=north": {
+   "model": "minenorthbanc:block/ordinateur_banc",
+   "y": 180
+  },
+  "facing=east": {
+   "model": "minenorthbanc:block/ordinateur_banc",
+   "y": 270
+  }
+ }
+}

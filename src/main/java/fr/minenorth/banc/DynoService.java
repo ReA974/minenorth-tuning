@@ -26,7 +26,7 @@ public final class DynoService {
     private DynoService() {}
 
     /** Rayon de recherche du véhicule autour du banc, et distance maximale du joueur au banc (blocs). */
-    private static final double VEHICLE_RADIUS = 6.0, USE_DISTANCE = 8.0;
+    private static final double VEHICLE_RADIUS = 12.0, USE_DISTANCE = 14.0;
     /** Grades acceptés par EntrepriseApi.canOpen : 99 = tout le personnel, 0 = patron et grade le plus haut (gérants). */
     private static final int STAFF = 99, MANAGER = 0;
     private static final String[] STAGE_NAMES = {"Origine (usine)", "Stage 1", "Stage 2", "Stage 3"};

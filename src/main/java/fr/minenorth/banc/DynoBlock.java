@@ -32,17 +32,21 @@ import org.jetbrains.annotations.Nullable;
  */
 public class DynoBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
-    private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 11, 16);
+    private final VoxelShape shape;
 
-    public DynoBlock() {
+    public DynoBlock() { this(Block.box(0, 0, 0, 16, 11, 16)); }
+
+    public DynoBlock(VoxelShape shape) {
+
         super(BlockBehaviour.Properties.of().strength(3.0f, 6.0f).sound(SoundType.METAL).noOcclusion());
+        this.shape = shape;
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
     }
 
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING); }
 
     @Override @SuppressWarnings("deprecation")
-    public VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return SHAPE; }
+    public VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return shape; }
 
     @Override @SuppressWarnings("deprecation")
     public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }

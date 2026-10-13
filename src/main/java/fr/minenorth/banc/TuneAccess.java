@@ -25,8 +25,8 @@ public final class TuneAccess {
     public static final String TUNE = "mnrp_tune";
 
     /** Niveaux : puissance (la « consommation » MTS est la force motrice), régime maximal, usure du moteur. */
-    public static final double[] POWER = {1.00, 1.10, 1.22, 1.38};
-    public static final double[] RPM = {1.00, 1.02, 1.04, 1.07};
+    public static final double[] POWER = {1.00, 1.25, 1.50, 2.00};
+    public static final double[] RPM = {1.00, 1.03, 1.06, 1.10};
     public static final double[] WEAR = {1.00, 1.30, 1.70, 2.30};
     public static final int MAX_STAGE = 3;
 

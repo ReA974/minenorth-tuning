@@ -20,5 +20,10 @@ Dans MTS la puissance d'un moteur est son coefficient « fuelConsumption » : pl
 véhicule (donc dans son NBT, même rangé au garage) et réappliqué toutes les 5 s aux véhicules chargés (MTS remet les valeurs d'usine au chargement).
 Si un moteur n'accepte pas le réglage, le banc répond « moteur non pris en charge » sans rien modifier.
 
+## Ordinateur de réglage
+Bloc `ordinateur_banc` (vitres / fer / redstone / diamant) : même service que le banc de puissance, sans la plateforme. On construit son banc à la main autour.
+Le véhicule peut être jusqu'à 12 blocs de l'ordinateur (ou du banc), le joueur jusqu'à 14 blocs.
+Niveaux renforcés : Stage 1 / 2 / 3 = +25 % / +50 % / +100 % de puissance, +3 / +6 / +10 % de régime max.
+
 ## Compiler
 Java 17. Builder d'abord `minenorth-api` puis `minenorth-entreprises` (jars lus dans leurs `build/libs`), puis `./gradlew build`.

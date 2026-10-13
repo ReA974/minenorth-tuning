@@ -26,7 +26,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Banc dynamométrique : plateforme basse de 4 de large sur 8 de long (32 blocs identiques, un par case), avec quatre paires de rouleaux
+ * Banc dynamométrique : plateforme basse de 4 de large sur 6 de long (32 blocs identiques, un par case), avec quatre paires de rouleaux
  * pour les roues. On roule dessus ; clic droit sur n'importe quelle case = même service que le banc de puissance (diagnostic et
  * reprogrammation du véhicule, personnel de l'entreprise). Casser une case retire tout le banc ; seule la case d'origine rend l'objet.
  */
@@ -34,7 +34,7 @@ public class DynoBenchBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final EnumProperty<Part> PART = EnumProperty.create("part", Part.class);
     /** Largeur (vers la droite du joueur) et longueur (dans le sens où il regarde), en blocs. */
-    public static final int WIDTH = 4, LENGTH = 8;
+    public static final int WIDTH = 4, LENGTH = 6;
     private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 2, 16);
 
     public enum Part implements StringRepresentable {
@@ -53,10 +53,10 @@ public class DynoBenchBlock extends BaseEntityBlock {
         return origin.relative(facing.getClockWise(), i).relative(facing, j);
     }
 
-    /** Rouleaux : deux essieux (j = 2 et 5) sous les deux roues de chaque côté (colonnes 1 et 2). */
+    /** Rouleaux : deux essieux (j = 1 et 4) sous les deux roues de chaque côté (colonnes 1 et 2). */
     public static Part partAt(int i, int j) {
         if (i == 0 && j == 0) return Part.ORIGIN;
-        return (i == 1 || i == 2) && (j == 2 || j == 5) ? Part.ROLLER : Part.DECK;
+        return (i == 1 || i == 2) && (j == 1 || j == 4) ? Part.ROLLER : Part.DECK;
     }
 
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING, PART); }

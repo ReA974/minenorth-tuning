@@ -20,8 +20,8 @@ Dans MTS la puissance d'un moteur est son coefficient « fuelConsumption » : pl
 véhicule (donc dans son NBT, même rangé au garage) et réappliqué toutes les 5 s aux véhicules chargés (MTS remet les valeurs d'usine au chargement).
 Si un moteur n'accepte pas le réglage, le banc répond « moteur non pris en charge » sans rien modifier.
 
-## Banc dynamométrique (8 × 4)
-Objet `banc_dyno` (fer en blocs / pistons / diamant / bloc de redstone) : pose d'un coup une plateforme basse bleue de **4 de large (à droite du joueur) sur 8 de long (devant lui)**
+## Banc dynamométrique (6 × 4)
+Objet `banc_dyno` (fer en blocs / pistons / diamant / bloc de redstone) : pose d'un coup une plateforme basse bleue de **4 de large (à droite du joueur) sur 6 de long (devant lui)**
 avec quatre rouleaux sous les roues, comme un vrai banc. Il faut 32 cases libres et être patron / gérant d'une entreprise active. On roule dessus ; clic droit sur
 n'importe quelle case = diagnostic et reprogrammation (même service que le banc de puissance, véhicule jusqu'à 12 blocs). Casser une case retire tout le banc.
 Niveaux renforcés : Stage 1 / 2 / 3 = +25 % / +50 % / +100 % de puissance, +3 / +6 / +10 % de régime max. L'ancien bloc `banc_puissance` (1 bloc) reste enregistré pour les bancs déjà posés

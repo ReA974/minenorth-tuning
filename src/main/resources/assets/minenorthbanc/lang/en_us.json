@@ -1,6 +1,6 @@
 {
  "block.minenorthbanc.banc_puissance": "Dyno",
  "item.minenorthbanc.banc_puissance": "Dyno",
- "block.minenorthbanc.banc_dyno": "Dyno bench (8x4)",
- "item.minenorthbanc.banc_dyno": "Dyno bench (8x4)"
+ "block.minenorthbanc.banc_dyno": "Dyno bench (6x4)",
+ "item.minenorthbanc.banc_dyno": "Dyno bench (6x4)"
 }

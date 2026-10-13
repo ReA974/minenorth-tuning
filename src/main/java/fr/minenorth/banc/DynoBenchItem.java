@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Pose le banc dynamométrique d'un coup : 4 de large (à droite du joueur) sur 8 de long (devant lui), à partir de la case visée.
+ * Pose le banc dynamométrique d'un coup : 4 de large (à droite du joueur) sur 6 de long (devant lui), à partir de la case visée.
  * Réservé au patron ou à un gérant d'une entreprise active ; il faut 32 cases libres.
  */
 public class DynoBenchItem extends BlockItem {

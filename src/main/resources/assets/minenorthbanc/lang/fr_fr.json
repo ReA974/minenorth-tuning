@@ -1,6 +1,6 @@
 {
  "block.minenorthbanc.banc_puissance": "Banc de puissance",
  "item.minenorthbanc.banc_puissance": "Banc de puissance",
- "block.minenorthbanc.banc_dyno": "Banc dynamométrique (8×4)",
- "item.minenorthbanc.banc_dyno": "Banc dynamométrique (8×4)"
+ "block.minenorthbanc.banc_dyno": "Banc dynamométrique (6×4)",
+ "item.minenorthbanc.banc_dyno": "Banc dynamométrique (6×4)"
 }

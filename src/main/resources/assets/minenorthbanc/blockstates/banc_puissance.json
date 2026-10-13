@@ -1,0 +1,20 @@
+{
+ "variants": {
+  "facing=south": {
+   "model": "minenorthbanc:block/banc_puissance",
+   "y": 0
+  },
+  "facing=west": {
+   "model": "minenorthbanc:block/banc_puissance",
+   "y": 90
+  },
+  "facing=north": {
+   "model": "minenorthbanc:block/banc_puissance",
+   "y": 180
+  },
+  "facing=east": {
+   "model": "minenorthbanc:block/banc_puissance",
+   "y": 270
+  }
+ }
+}

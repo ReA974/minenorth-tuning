@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved - MineNorthRP"
+[[mods]]
+modId="minenorthbanc"
+version="1.0.0"
+displayName="MineNorth Banc de puissance"
+authors="MineNorth RP"
+description='''Banc de puissance pour les entreprises de modification automobile : diagnostic moteur et reprogrammation des véhicules Immersive Vehicles.'''
+[[dependencies.minenorthbanc]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.minenorthbanc]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.21)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.minenorthbanc]]
+modId="minenorthentreprises"
+mandatory=true
+versionRange="[1.1.0,2)"
+ordering="AFTER"
+side="BOTH"

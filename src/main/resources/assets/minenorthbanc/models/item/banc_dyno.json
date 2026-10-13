@@ -1,0 +1,25 @@
+{
+ "parent": "minenorthbanc:block/dyno_roller",
+ "display": {
+  "gui": {
+   "rotation": [
+    30,
+    225,
+    0
+   ],
+   "scale": 0.7
+  },
+  "ground": {
+   "scale": 0.4
+  },
+  "fixed": {
+   "scale": 0.8
+  },
+  "thirdperson_righthand": {
+   "scale": 0.5
+  },
+  "firstperson_righthand": {
+   "scale": 0.5
+  }
+ }
+}

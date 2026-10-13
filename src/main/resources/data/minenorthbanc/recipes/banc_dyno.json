@@ -1,0 +1,25 @@
+{
+ "type": "minecraft:crafting_shaped",
+ "pattern": [
+  "III",
+  "PDP",
+  "IRI"
+ ],
+ "key": {
+  "I": {
+   "item": "minecraft:iron_block"
+  },
+  "P": {
+   "item": "minecraft:piston"
+  },
+  "D": {
+   "item": "minecraft:diamond"
+  },
+  "R": {
+   "item": "minecraft:redstone_block"
+  }
+ },
+ "result": {
+  "item": "minenorthbanc:banc_dyno"
+ }
+}

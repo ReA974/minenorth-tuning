@@ -1,0 +1,244 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "particle": "minenorthbanc:block/dyno_deck",
+  "deck": "minenorthbanc:block/dyno_deck",
+  "roller": "minenorthbanc:block/dyno_roller",
+  "pit": "minenorthbanc:block/dyno_pit"
+ },
+ "elements": [
+  {
+   "from": [
+    0,
+    0,
+    0
+   ],
+   "to": [
+    16,
+    2,
+    3
+   ],
+   "faces": {
+    "north": {
+     "texture": "#deck"
+    },
+    "south": {
+     "texture": "#deck"
+    },
+    "east": {
+     "texture": "#deck"
+    },
+    "west": {
+     "texture": "#deck"
+    },
+    "up": {
+     "texture": "#deck"
+    },
+    "down": {
+     "texture": "#deck"
+    }
+   }
+  },
+  {
+   "from": [
+    0,
+    0,
+    13
+   ],
+   "to": [
+    16,
+    2,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#deck"
+    },
+    "south": {
+     "texture": "#deck"
+    },
+    "east": {
+     "texture": "#deck"
+    },
+    "west": {
+     "texture": "#deck"
+    },
+    "up": {
+     "texture": "#deck"
+    },
+    "down": {
+     "texture": "#deck"
+    }
+   }
+  },
+  {
+   "from": [
+    0,
+    0,
+    3
+   ],
+   "to": [
+    1,
+    2,
+    13
+   ],
+   "faces": {
+    "north": {
+     "texture": "#deck"
+    },
+    "south": {
+     "texture": "#deck"
+    },
+    "east": {
+     "texture": "#deck"
+    },
+    "west": {
+     "texture": "#deck"
+    },
+    "up": {
+     "texture": "#deck"
+    },
+    "down": {
+     "texture": "#deck"
+    }
+   }
+  },
+  {
+   "from": [
+    15,
+    0,
+    3
+   ],
+   "to": [
+    16,
+    2,
+    13
+   ],
+   "faces": {
+    "north": {
+     "texture": "#deck"
+    },
+    "south": {
+     "texture": "#deck"
+    },
+    "east": {
+     "texture": "#deck"
+    },
+    "west": {
+     "texture": "#deck"
+    },
+    "up": {
+     "texture": "#deck"
+    },
+    "down": {
+     "texture": "#deck"
+    }
+   }
+  },
+  {
+   "from": [
+    1,
+    0,
+    3
+   ],
+   "to": [
+    15,
+    0.5,
+    13
+   ],
+   "faces": {
+    "north": {
+     "texture": "#pit"
+    },
+    "south": {
+     "texture": "#pit"
+    },
+    "east": {
+     "texture": "#pit"
+    },
+    "west": {
+     "texture": "#pit"
+    },
+    "up": {
+     "texture": "#pit"
+    },
+    "down": {
+     "texture": "#pit"
+    }
+   }
+  },
+  {
+   "from": [
+    1,
+    -3.5700000000000003,
+    3.9299999999999997
+   ],
+   "to": [
+    15,
+    4.57,
+    12.07
+   ],
+   "faces": {
+    "north": {
+     "texture": "#roller"
+    },
+    "south": {
+     "texture": "#roller"
+    },
+    "east": {
+     "texture": "#roller"
+    },
+    "west": {
+     "texture": "#roller"
+    },
+    "up": {
+     "texture": "#roller"
+    },
+    "down": {
+     "texture": "#roller"
+    }
+   }
+  },
+  {
+   "from": [
+    1,
+    -3.5700000000000003,
+    3.9299999999999997
+   ],
+   "to": [
+    15,
+    4.57,
+    12.07
+   ],
+   "faces": {
+    "north": {
+     "texture": "#roller"
+    },
+    "south": {
+     "texture": "#roller"
+    },
+    "east": {
+     "texture": "#roller"
+    },
+    "west": {
+     "texture": "#roller"
+    },
+    "up": {
+     "texture": "#roller"
+    },
+    "down": {
+     "texture": "#roller"
+    }
+   },
+   "rotation": {
+    "origin": [
+     8,
+     0.5,
+     8
+    ],
+    "axis": "x",
+    "angle": 45
+   }
+  }
+ ]
+}

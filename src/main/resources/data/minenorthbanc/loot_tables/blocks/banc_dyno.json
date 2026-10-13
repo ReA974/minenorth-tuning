@@ -6,12 +6,19 @@
    "entries": [
     {
      "type": "minecraft:item",
-     "name": "minenorthbanc:ordinateur_banc"
+     "name": "minenorthbanc:banc_dyno"
     }
    ],
    "conditions": [
     {
      "condition": "minecraft:survives_explosion"
+    },
+    {
+     "condition": "minecraft:block_state_property",
+     "block": "minenorthbanc:banc_dyno",
+     "properties": {
+      "part": "origin"
+     }
     }
    ]
   }

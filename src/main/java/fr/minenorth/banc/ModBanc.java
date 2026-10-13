@@ -20,12 +20,11 @@ public final class ModBanc {
 
     public static final RegistryObject<Block> DYNO = BLOCKS.register("banc_puissance", DynoBlock::new);
     public static final RegistryObject<Item> DYNO_ITEM = ITEMS.register("banc_puissance", () -> new DynoItem(DYNO.get(), new Item.Properties()));
-    /** Ordinateur de réglage : même service que le banc, sans la plateforme (le joueur construit son banc autour, jusqu'à 12 blocs). */
-    public static final RegistryObject<Block> PC = BLOCKS.register("ordinateur_banc",
-            () -> new DynoBlock(net.minecraft.world.level.block.Block.box(2, 0, 3, 14, 15, 14)));
-    public static final RegistryObject<Item> PC_ITEM = ITEMS.register("ordinateur_banc", () -> new DynoItem(PC.get(), new Item.Properties()));
+    /** Banc dynamométrique 8 x 4 (32 cases, une entité de bloc par case pour l'entreprise et la position). */
+    public static final RegistryObject<Block> BENCH = BLOCKS.register("banc_dyno", DynoBenchBlock::new);
+    public static final RegistryObject<Item> BENCH_ITEM = ITEMS.register("banc_dyno", () -> new DynoBenchItem(BENCH.get(), new Item.Properties()));
     public static final RegistryObject<BlockEntityType<DynoBE>> DYNO_BE = BLOCK_ENTITIES.register("banc_puissance",
-            () -> BlockEntityType.Builder.of(DynoBE::new, DYNO.get(), PC.get()).build(null));
+            () -> BlockEntityType.Builder.of(DynoBE::new, DYNO.get(), BENCH.get()).build(null));
 
     public static void register(IEventBus bus) {
         BLOCKS.register(bus);

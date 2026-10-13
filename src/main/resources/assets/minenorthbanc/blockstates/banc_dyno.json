@@ -1,0 +1,52 @@
+{
+ "variants": {
+  "facing=north,part=origin": {
+   "model": "minenorthbanc:block/dyno_deck",
+   "y": 0
+  },
+  "facing=north,part=deck": {
+   "model": "minenorthbanc:block/dyno_deck",
+   "y": 0
+  },
+  "facing=north,part=roller": {
+   "model": "minenorthbanc:block/dyno_roller",
+   "y": 0
+  },
+  "facing=east,part=origin": {
+   "model": "minenorthbanc:block/dyno_deck",
+   "y": 90
+  },
+  "facing=east,part=deck": {
+   "model": "minenorthbanc:block/dyno_deck",
+   "y": 90
+  },
+  "facing=east,part=roller": {
+   "model": "minenorthbanc:block/dyno_roller",
+   "y": 90
+  },
+  "facing=south,part=origin": {
+   "model": "minenorthbanc:block/dyno_deck",
+   "y": 180
+  },
+  "facing=south,part=deck": {
+   "model": "minenorthbanc:block/dyno_deck",
+   "y": 180
+  },
+  "facing=south,part=roller": {
+   "model": "minenorthbanc:block/dyno_roller",
+   "y": 180
+  },
+  "facing=west,part=origin": {
+   "model": "minenorthbanc:block/dyno_deck",
+   "y": 270
+  },
+  "facing=west,part=deck": {
+   "model": "minenorthbanc:block/dyno_deck",
+   "y": 270
+  },
+  "facing=west,part=roller": {
+   "model": "minenorthbanc:block/dyno_roller",
+   "y": 270
+  }
+ }
+}

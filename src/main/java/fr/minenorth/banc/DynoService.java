@@ -120,7 +120,7 @@ public final class DynoService {
     /** Casser le banc : réservé aux patron / gérants de l'entreprise propriétaire et aux OP. */
     @SubscribeEvent
     public static void onBreak(BlockEvent.BreakEvent e) {
-        if (!(e.getState().getBlock() instanceof DynoBlock) || !(e.getPlayer() instanceof ServerPlayer sp)) return;
+        if (!(e.getState().getBlock() instanceof DynoBlock || e.getState().getBlock() instanceof DynoBenchBlock) || !(e.getPlayer() instanceof ServerPlayer sp)) return;
         BlockPos pos = e.getPos();
         if (sp.level().getBlockEntity(pos) instanceof DynoBE be && be.companyId >= 0 && !sp.hasPermissions(2)
                 && !EntrepriseApi.canOpen(sp, be.companyId, MANAGER)) {

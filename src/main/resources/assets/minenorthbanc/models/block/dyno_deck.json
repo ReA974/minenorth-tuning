@@ -1,0 +1,43 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "particle": "minenorthbanc:block/dyno_deck",
+  "deck": "minenorthbanc:block/dyno_deck",
+  "roller": "minenorthbanc:block/dyno_roller",
+  "pit": "minenorthbanc:block/dyno_pit"
+ },
+ "elements": [
+  {
+   "from": [
+    0,
+    0,
+    0
+   ],
+   "to": [
+    16,
+    2,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#deck"
+    },
+    "south": {
+     "texture": "#deck"
+    },
+    "east": {
+     "texture": "#deck"
+    },
+    "west": {
+     "texture": "#deck"
+    },
+    "up": {
+     "texture": "#deck"
+    },
+    "down": {
+     "texture": "#deck"
+    }
+   }
+  }
+ ]
+}

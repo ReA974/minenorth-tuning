@@ -1,6 +1,6 @@
 {
  "block.minenorthbanc.banc_puissance": "Banc de puissance",
  "item.minenorthbanc.banc_puissance": "Banc de puissance",
- "block.minenorthbanc.ordinateur_banc": "Ordinateur de réglage",
- "item.minenorthbanc.ordinateur_banc": "Ordinateur de réglage"
+ "block.minenorthbanc.banc_dyno": "Banc dynamométrique (8×4)",
+ "item.minenorthbanc.banc_dyno": "Banc dynamométrique (8×4)"
 }

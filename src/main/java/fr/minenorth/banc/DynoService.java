@@ -111,6 +111,10 @@ public final class DynoService {
             return;
         }
         v.getPersistentData().putInt(TuneAccess.TUNE, stage);
+        TuneAccess.Engine fa = TuneAccess.factory(v), now = TuneAccess.current(v);
+        com.mojang.logging.LogUtils.getLogger().info("[Banc] {} (avant {}) -> stage {} : puissance maintenant {} (origine {}), regime max {} -> {}, vehicule {}",
+                TuneAccess.name(v), old, stage, now == null ? "?" : now.power(), fa == null ? "?" : fa.power(),
+                fa == null ? "?" : fa.maxRpm(), now == null ? "?" : now.maxRpm(), v.getClass().getSimpleName());
         TuneService.track(v);
         send(p, be, stage == 0 ? "Réglages d'usine rétablis." : "Moteur reprogrammé : " + STAGE_NAMES[stage] + ". Pensez à facturer le client.", true);
     }

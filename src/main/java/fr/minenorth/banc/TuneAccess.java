@@ -25,17 +25,17 @@ public final class TuneAccess {
     public static final String TUNE = "mnrp_tune";
 
     /** Niveaux : puissance (la « consommation » MTS est la force motrice), régime maximal, usure du moteur. */
-    public static final double[] POWER = {1.00, 1.35, 1.75, 2.40};
+    public static final double[] POWER = {1.00, 1.50, 2.20, 3.20};
     public static final double[] RPM = {1.00, 1.03, 1.06, 1.10};
     public static final double[] WEAR = {1.00, 1.30, 1.70, 2.30};
     /** Adhérence des roues motrices : MTS plafonne la force motrice à masse x friction, la puissance seule ne sert à rien tant que les roues patinent. */
-    public static final double[] GRIP = {1.00, 1.10, 1.20, 1.35};
+    public static final double[] GRIP = {1.00, 1.15, 1.30, 1.50};
     public static final int MAX_STAGE = 3;
 
     /** Options indépendantes des stages (rangées dans les données persistantes du véhicule, comme le stage). */
     public static final String BOOST_KEY = "mnrp_boost", AXLE_KEY = "mnrp_axle", TIRES_KEY = "mnrp_tires", BRAKES_KEY = "mnrp_brakes";
     /** Suralimentation (aucune / compresseur / turbo) : puissance ajoutée (part de la puissance d'usine) et usure du moteur. */
-    public static final double[] BOOST_POWER = {0, 0.30, 0.55}, BOOST_WEAR = {1.00, 1.15, 1.50};
+    public static final double[] BOOST_POWER = {0, 0.35, 0.65}, BOOST_WEAR = {1.00, 1.15, 1.50};
     /** Rapport de pont (origine / court / long) : un pont court accélère plus fort mais plafonne plus tôt. */
     public static final double[] AXLE = {1.00, 1.15, 0.88};
     /** Pneus (origine / sport / course) : adhérence de traction de toutes les roues et tenue latérale. */

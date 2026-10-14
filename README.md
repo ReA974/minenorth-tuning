@@ -1,4 +1,4 @@
-# MineNorth Banc de puissance
+﻿# MineNorth Banc de puissance
 
 Mod Forge 1.20.1 (`minenorthbanc`). Dépend de `minenorth-entreprises` (≥ 1.1.0) et d'Immersive Vehicles (par réflexion, 24.0.0).
 
@@ -43,4 +43,4 @@ Chaque réglage part des valeurs d'usine (aucun cumul en le refaisant) ; un pneu
 Java 17. Builder d'abord `minenorth-api` puis `minenorth-entreprises` (jars lus dans leurs `build/libs`), puis `./gradlew build`.
 
 ## Diagnostic
-**/banc debug** (OP, à moins de 8 blocs d'un véhicule MTS) : affiche le réglage et, pour les freins, le pont, le moteur et les roues motrices, la valeur d'usine et la valeur réellement en vigueur dans MTS. Sert à vérifier qu'un réglage est bien pris en compte (par ex. « Freins : usine 1.000 -> actuel 1.600 »).
+**/mnbanc debug** (ou /banc debug ; /mnbanc existe car un plugin Bukkit peut déjà posséder /banc sur Arclight ; OP, à moins de 8 blocs d'un véhicule MTS) : affiche le réglage et, pour les freins, le pont, le moteur et les roues motrices, la valeur d'usine et la valeur réellement en vigueur dans MTS. Sert à vérifier qu'un réglage est bien pris en compte (par ex. « Freins : usine 1.000 -> actuel 1.600 »).

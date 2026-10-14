@@ -231,6 +231,11 @@ public final class TuneAccess {
         }
     }
 
+    /** Le moteur (définition du pack) porte-t-il des « variableModifiers » (cas des moteurs GVP) ? */
+    private static boolean hasVariableModifiers(Object engine) {
+        return field(field(engine, "definition"), "variableModifiers") instanceof java.util.Collection<?> c && !c.isEmpty();
+    }
+
     private static String f(double v) { return Double.isNaN(v) ? "?" : String.format(java.util.Locale.ROOT, "%.3f", v); }
 
     /**
@@ -253,6 +258,11 @@ public final class TuneAccess {
             out.add("Moteur " + (++i) + " : puissance usine " + f(number(def, "fuelConsumption", Double.NaN)) + " -> actuelle " + f(valueOf(field(eng, "fuelConsumptionVar")))
                     + ", régime max " + f(number(def, "maxRPM", Double.NaN)) + " -> " + f(valueOf(field(eng, "maxRPMVar")))
                     + ", suralim. " + f(valueOf(field(eng, "superchargerFuelConsumptionVar"))));
+            out.add("  modificateurs de variables du pack (GVP) : " + (hasVariableModifiers(eng) ? "OUI (la valeur lue varie : au point mort la puissance lue peut être 0)" : "non"));
+            // Plafond de régime réel dans MTS : le limiteur (revlimitRPM, -1 = aucun) sinon le régime « sûr » (maxSafeRPM).
+            out.add("  limiteur : usine " + f(number(def, "revlimitRPM", Double.NaN)) + " -> " + f(valueOf(field(eng, "revLimitRPMVar")))
+                    + " | régime sûr : usine " + f(number(def, "maxSafeRPM", Double.NaN)) + " -> " + f(valueOf(field(eng, "maxSafeRPMVar")))
+                    + " | ralenti " + f(valueOf(field(eng, "idleRPMVar"))));
             if (field(eng, "drivenWheels") instanceof Iterable<?> dw) {
                 int n = 0;
                 for (Object w : dw) {
@@ -295,10 +305,13 @@ public final class TuneAccess {
                         set(eng, "superchargerFuelConsumptionVar", 0);
                     } catch (Throwable ignored) {}
                 }
-                if (power > 0 && Math.abs(valueOf(field(eng, "fuelConsumptionVar")) - power) > 1e-3) return false;   // valeur refusée
+                // Valeur lue différente de celle posée : MTS la refuse, OU le moteur a des modificateurs de variable qui la changent en vol (les moteurs GVP
+                // mettent la puissance à 0 au point mort / pied sur l'embrayage). Dans le second cas c'est normal : on ne s'arrête pas là, sinon les roues,
+                // le pont et les freins ne seraient jamais réglés sur ces véhicules.
+                if (power > 0 && Math.abs(valueOf(field(eng, "fuelConsumptionVar")) - power) > 1e-3 && !hasVariableModifiers(eng)) return false;
                 any = true;
             } catch (Throwable t) {
-                return false;
+                if (!hasVariableModifiers(eng)) return false;
             }
         }
         if (!any) return false;

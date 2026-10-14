@@ -22,7 +22,7 @@ public final class TuneService {
     private static final int INTERVAL = 100;
     private static int counter;
 
-    static void track(Entity e) { if (TuneAccess.stageOf(e) > 0) TUNED.add(e); else TUNED.remove(e); }
+    static void track(Entity e) { if (!TuneAccess.Setup.read(e).stock()) TUNED.add(e); else TUNED.remove(e); }
 
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent e) {
@@ -37,9 +37,9 @@ public final class TuneService {
         for (Iterator<Entity> it = TUNED.iterator(); it.hasNext(); ) {
             Entity v = it.next();
             if (v.isRemoved()) { it.remove(); continue; }
-            int stage = TuneAccess.stageOf(v);
-            if (stage <= 0) { it.remove(); continue; }
-            TuneAccess.applyTune(v, stage);
+            TuneAccess.Setup setup = TuneAccess.Setup.read(v);
+            if (setup.stock()) { it.remove(); continue; }
+            TuneAccess.applyTune(v, setup);
         }
     }
 }

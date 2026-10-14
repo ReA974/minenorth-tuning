@@ -20,9 +20,11 @@ public class DynoScreen extends Screen {
             ALERT = 0xFFFF6A9A, OK = 0xFF6CFF9A, BLUE = 0xFF20AAEB, WHITE = 0xFFFFFFFF, DISABLED = 0xFF2A2468;
 
     private BancNetwork.State state;
-    private int left, top, h, rowsTop;
-    private int selected = -1;
+    private int left, top, h, rowsTop, tabsTop;
+    private int selected = -1, group;
     private Btn apply;
+    private static final String[] TABS = {"Moteur", "Suralim.", "Pont", "Pneus", "Freins"};
+    private static final int TAB_H = 20;
 
     private DynoScreen(BancNetwork.State state) {
         super(Component.literal("Banc de puissance"));
@@ -34,7 +36,7 @@ public class DynoScreen extends Screen {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen instanceof DynoScreen d && d.state.pos().equals(s.pos())) {
             d.state = s;
-            if (d.selected >= s.rows().size()) d.selected = -1;
+            if (d.selected >= d.rowsOfGroup().size()) d.selected = -1;
             return;
         }
         mc.setScreen(new DynoScreen(s));
@@ -43,29 +45,43 @@ public class DynoScreen extends Screen {
     @Override
     protected void init() {
         int lines = Math.min(state.lines().size(), 4);
-        h = 46 + 20 + lines * 10 + 8 + 4 * ROW_H + 8 + 20 + 22;
+        h = 46 + 20 + lines * 10 + 6 + TAB_H + 4 + 4 * ROW_H + 8 + 20 + 22;
         left = (width - W) / 2;
         top = Math.max(4, (height - h) / 2);
-        rowsTop = top + 46 + 20 + lines * 10 + 8;
+        tabsTop = top + 46 + 20 + lines * 10 + 6;
+        rowsTop = tabsTop + TAB_H + 4;
         int y = rowsTop + 4 * ROW_H + 8;
-        apply = new Btn(left + 14, y, 150, 18, "Appliquer ce niveau", GREEN, this::applySelected);
+        apply = new Btn(left + 14, y, 150, 18, "Appliquer ce choix", GREEN, this::applySelected);
         addRenderableWidget(apply);
         addRenderableWidget(new Btn(left + W - 14 - 100, y, 100, 18, "Actualiser", DARK, () -> send(BancNetwork.ACT_REFRESH, 0)));
     }
 
     private void send(int action, int index) {
-        BancNetwork.CHANNEL.sendToServer(new BancNetwork.Action(state.pos(), action, index));
+        BancNetwork.CHANNEL.sendToServer(new BancNetwork.Action(state.pos(), action, group, index));
+    }
+
+    /** Choix de l'onglet affiché, dans l'ordre reçu du serveur (l'index envoyé est la position dans cette liste). */
+    private List<BancNetwork.Row> rowsOfGroup() {
+        return state.rows().stream().filter(r -> r.group() == group).toList();
     }
 
     private void applySelected() {
-        if (selected >= 0 && selected < state.rows().size() && !state.rows().get(selected).current()) send(BancNetwork.ACT_APPLY, selected);
+        List<BancNetwork.Row> rows = rowsOfGroup();
+        if (selected >= 0 && selected < rows.size() && !rows.get(selected).current()) send(BancNetwork.ACT_APPLY, selected);
     }
+
+    private int tabW() { return (W - 20) / TABS.length; }
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (button == 0 && my >= tabsTop && my < tabsTop + TAB_H && mx >= left + 10 && mx < left + 10 + tabW() * TABS.length) {
+            int t = (int) ((mx - left - 10) / tabW());
+            if (t != group) { group = t; selected = -1; }
+            return true;
+        }
         if (button == 0 && mx >= left + 10 && mx < left + W - 10 && my >= rowsTop && my < rowsTop + 4 * ROW_H) {
             int i = (int) ((my - rowsTop) / ROW_H);
-            if (i < state.rows().size()) { selected = i; return true; }
+            if (i < rowsOfGroup().size()) { selected = i; return true; }
         }
         return super.mouseClicked(mx, my, button);
     }
@@ -92,7 +108,13 @@ public class DynoScreen extends Screen {
         for (int i = 0; i < Math.min(state.lines().size(), 4); i++)
             g.drawString(font, font.plainSubstrByWidth(state.lines().get(i), W - 28), x, top + 46 + 20 + i * 10, TEXT, false);
 
-        List<BancNetwork.Row> rows = state.rows();
+        for (int t = 0; t < TABS.length; t++) {
+            int tx = left + 10 + t * tabW();
+            boolean on = t == group, hov = mx >= tx && mx < tx + tabW() && my >= tabsTop && my < tabsTop + TAB_H;
+            g.fill(tx + 1, tabsTop, tx + tabW() - 1, tabsTop + TAB_H, on ? CYAN : hov ? HOVER : LIST);
+            g.drawString(font, TABS[t], tx + tabW() / 2 - font.width(TABS[t]) / 2, tabsTop + 6, on ? WHITE : MUTED, false);
+        }
+        List<BancNetwork.Row> rows = rowsOfGroup();
         apply.active = selected >= 0 && selected < rows.size() && !rows.get(selected).current();
         for (int i = 0; i < Math.min(rows.size(), 4); i++) {
             BancNetwork.Row row = rows.get(i);

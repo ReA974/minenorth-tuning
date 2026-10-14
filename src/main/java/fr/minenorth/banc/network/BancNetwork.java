@@ -24,7 +24,7 @@ public final class BancNetwork {
     private BancNetwork() {}
 
     public static final int ACT_APPLY = 1, ACT_REFRESH = 2;
-    private static final String PROTOCOL = "1";
+    private static final String PROTOCOL = "2";
     private static final int MAX_ROWS = 16, MAX_LINES = 12;
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MineNorthBanc.MOD_ID, "network"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
@@ -38,10 +38,12 @@ public final class BancNetwork {
 
     private static String cut(String v, int max) { v = v == null ? "" : v; return v.length() > max ? v.substring(0, max) : v; }
 
-    /** Un niveau de reprogrammation ; {@code current} = celui du véhicule. */
-    public record Row(String label, String detail, boolean current) {
-        static void encode(FriendlyByteBuf b, Row r) { b.writeUtf(cut(r.label, 64), 64); b.writeUtf(cut(r.detail, 96), 96); b.writeBoolean(r.current); }
-        static Row decode(FriendlyByteBuf b) { return new Row(b.readUtf(64), b.readUtf(96), b.readBoolean()); }
+    /** Un choix d'un onglet ({@code group} : 0 moteur, 1 suralimentation, 2 pont, 3 pneus, 4 freins) ; {@code current} = celui du véhicule. */
+    public record Row(int group, String label, String detail, boolean current) {
+        static void encode(FriendlyByteBuf b, Row r) {
+            b.writeVarInt(r.group); b.writeUtf(cut(r.label, 64), 64); b.writeUtf(cut(r.detail, 96), 96); b.writeBoolean(r.current);
+        }
+        static Row decode(FriendlyByteBuf b) { return new Row(b.readVarInt(), b.readUtf(64), b.readUtf(96), b.readBoolean()); }
     }
 
     /** Serveur → client : état de l'écran (l'ouvre ou le met à jour). */
@@ -72,10 +74,10 @@ public final class BancNetwork {
         }
     }
 
-    /** Client → serveur : appliquer le niveau {@code index} (ACT_APPLY) ou rafraîchir. Tout est revérifié côté serveur. */
-    public record Action(BlockPos pos, int action, int index) {
-        static void encode(Action a, FriendlyByteBuf b) { b.writeBlockPos(a.pos); b.writeVarInt(a.action); b.writeVarInt(a.index); }
-        static Action decode(FriendlyByteBuf b) { return new Action(b.readBlockPos(), b.readVarInt(), b.readVarInt()); }
+    /** Client → serveur : appliquer le choix {@code index} de l'onglet {@code group} (ACT_APPLY) ou rafraîchir. Tout est revérifié côté serveur. */
+    public record Action(BlockPos pos, int action, int group, int index) {
+        static void encode(Action a, FriendlyByteBuf b) { b.writeBlockPos(a.pos); b.writeVarInt(a.action); b.writeVarInt(a.group); b.writeVarInt(a.index); }
+        static Action decode(FriendlyByteBuf b) { return new Action(b.readBlockPos(), b.readVarInt(), b.readVarInt(), b.readVarInt()); }
         static void handle(Action a, Supplier<NetworkEvent.Context> c) {
             c.get().enqueueWork(() -> { ServerPlayer sp = c.get().getSender(); if (sp != null) DynoService.handle(sp, a); });
             c.get().setPacketHandled(true);

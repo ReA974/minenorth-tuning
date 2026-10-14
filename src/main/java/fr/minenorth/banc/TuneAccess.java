@@ -279,43 +279,74 @@ public final class TuneAccess {
      * Applique un réglage complet (valeurs d'usine x facteur : appel répétable sans cumul).
      * Retourne faux si aucun moteur n'a pu être réglé ou si une valeur n'a pas été prise en compte.
      */
+    private interface Step { void run() throws Throwable; }
+
+    /** Exécute une étape du réglage ; une étape qui échoue n'empêche pas les suivantes (journalisée si {@code log} n'est pas nul). */
+    private static boolean step(List<String> log, String name, Step st) {
+        try {
+            st.run();
+            return true;
+        } catch (Throwable t) {
+            if (log != null) log.add("ÉCHEC " + name + " : " + t);
+            return false;
+        }
+    }
+
+    /** Pose une valeur puis relit : journalise un écart (modificateurs du pack, ou valeur refusée par MTS). */
+    private static void setChecked(List<String> log, String name, Object holder, String varField, double value) throws ReflectiveOperationException {
+        set(holder, varField, value);
+        double now = valueOf(field(holder, varField));
+        if (log != null && Math.abs(now - value) > 1e-3) log.add("Écart " + name + " : posé " + f(value) + ", relu " + f(now) + " (modificateurs du pack ou valeur refusée)");
+    }
+
     public static boolean applyTune(Entity e, Setup s) {
-        boolean any = false;
+        return applyTune(e, s, null);
+    }
+
+    /**
+     * Applique un réglage complet (valeurs d'usine x facteur : appel répétable sans cumul). Chaque étape (puissance, régime, limiteur, usure,
+     * suralimentation, roues, pont, freins) est indépendante : l'échec de l'une ne bloque pas les autres (les moteurs GVP ont des modificateurs de
+     * variables qui faisaient avorter l'ancien code avant les freins). Retourne faux si rien n'a pu être appliqué, ou si la suralimentation demandée
+     * est impossible (moteur déjà suralimenté d'usine). {@code log} reçoit le détail (commande /mnbanc apply).
+     */
+    public static boolean applyTune(Entity e, Setup s, List<String> log) {
+        boolean any = false, boostRefused = false;
         List<Object> engines = engines(e);
+        if (log != null) log.add("Moteurs trouvés : " + engines.size());
         for (Object eng : engines) {
             Object def = engineDef(eng);
-            if (def == null) continue;
-            try {
-                double power = number(def, "fuelConsumption", 0) * POWER[s.stage()];
-                set(eng, "fuelConsumptionVar", power);
-                set(eng, "maxRPMVar", number(def, "maxRPM", 0) * RPM[s.stage()]);
-                setOptional(eng, "revLimitRPMVar", number(def, "revlimitRPM", 0) * RPM[s.stage()]);
-                setOptional(eng, "maxSafeRPMVar", number(def, "maxSafeRPM", 0) * RPM[s.stage()]);
-                setOptional(eng, "wearFactorVar", number(def, "engineWearFactor", 0) * WEAR[s.stage()]);
-                // Suralimentation : MTS ajoute (consommation du compresseur x rendement) à la force motrice, et un rendement > 1 multiplie l'usure.
-                double sc = number(def, "superchargerFuelConsumption", 0), eff = BOOST_WEAR[s.boost()];
-                if (sc > 0) {
-                    if (s.boost() > 0) return false;   // moteur déjà suralimenté d'usine : on n'y touche pas
-                } else if (s.boost() > 0) {
-                    set(eng, "superchargerEfficiencyVar", eff);
-                    set(eng, "superchargerFuelConsumptionVar", number(def, "fuelConsumption", 0) * BOOST_POWER[s.boost()] / eff);
-                } else {
-                    try {
-                        set(eng, "superchargerEfficiencyVar", number(def, "superchargerEfficiency", 0));
-                        set(eng, "superchargerFuelConsumptionVar", 0);
-                    } catch (Throwable ignored) {}
-                }
-                // Valeur lue différente de celle posée : MTS la refuse, OU le moteur a des modificateurs de variable qui la changent en vol (les moteurs GVP
-                // mettent la puissance à 0 au point mort / pied sur l'embrayage). Dans le second cas c'est normal : on ne s'arrête pas là, sinon les roues,
-                // le pont et les freins ne seraient jamais réglés sur ces véhicules.
-                if (power > 0 && Math.abs(valueOf(field(eng, "fuelConsumptionVar")) - power) > 1e-3 && !hasVariableModifiers(eng)) return false;
-                any = true;
-            } catch (Throwable t) {
-                if (!hasVariableModifiers(eng)) return false;
+            if (def == null) {
+                if (log != null) log.add("Moteur sans définition lisible.");
+                continue;
             }
+            double fuel = number(def, "fuelConsumption", 0);
+            boolean ok = step(log, "puissance", () -> setChecked(log, "puissance", eng, "fuelConsumptionVar", fuel * POWER[s.stage()]));
+            step(log, "régime max", () -> setChecked(log, "régime max", eng, "maxRPMVar", number(def, "maxRPM", 0) * RPM[s.stage()]));
+            double rev = number(def, "revlimitRPM", 0), safe = number(def, "maxSafeRPM", 0), wear = number(def, "engineWearFactor", 0);
+            if (rev > 0) step(log, "limiteur", () -> setChecked(log, "limiteur", eng, "revLimitRPMVar", rev * RPM[s.stage()]));
+            if (safe > 0) step(log, "régime sûr", () -> setChecked(log, "régime sûr", eng, "maxSafeRPMVar", safe * RPM[s.stage()]));
+            if (wear > 0) step(log, "usure", () -> setChecked(log, "usure", eng, "wearFactorVar", wear * WEAR[s.stage()]));
+            // Suralimentation : MTS ajoute (consommation du compresseur x rendement) à la force motrice, et un rendement > 1 multiplie l'usure.
+            double sc = number(def, "superchargerFuelConsumption", 0), eff = BOOST_WEAR[s.boost()];
+            if (sc > 0) {
+                if (s.boost() > 0) {
+                    boostRefused = true;   // moteur déjà suralimenté d'usine : on n'y touche pas
+                    if (log != null) log.add("Suralimentation refusée : moteur déjà suralimenté d'usine.");
+                }
+            } else if (s.boost() > 0) {
+                step(log, "suralimentation (rendement)", () -> setChecked(log, "rendement compresseur", eng, "superchargerEfficiencyVar", eff));
+                step(log, "suralimentation (puissance)", () -> setChecked(log, "puissance compresseur", eng, "superchargerFuelConsumptionVar", fuel * BOOST_POWER[s.boost()] / eff));
+            } else {
+                step(null, "", () -> set(eng, "superchargerEfficiencyVar", number(def, "superchargerEfficiency", 0)));
+                step(null, "", () -> set(eng, "superchargerFuelConsumptionVar", 0));
+            }
+            any |= ok;
         }
-        if (!any) return false;
-        applyWheels(e, s, engines);
-        return applyChassis(e, s);
+        boolean wheelsOk = !engines.isEmpty() && step(log, "roues", () -> applyWheels(e, s, engines));
+        boolean chassisOk = step(log, "pont / freins", () -> {
+            if (!applyChassis(e, s)) throw new IllegalStateException("valeur non prise en compte");
+        });
+        if (log != null) log.add("Résultat : puissance " + (any ? "posée" : "NON posée") + ", roues " + (wheelsOk ? "ok" : "non") + ", pont/freins " + (chassisOk ? "ok" : "non"));
+        return (any || chassisOk) && !boostRefused;
     }
 }

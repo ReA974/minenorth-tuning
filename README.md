@@ -44,3 +44,5 @@ Java 17. Builder d'abord `minenorth-api` puis `minenorth-entreprises` (jars lus 
 
 ## Diagnostic
 **/mnbanc debug** (ou /banc debug ; /mnbanc existe car un plugin Bukkit peut déjà posséder /banc sur Arclight ; OP, à moins de 8 blocs d'un véhicule MTS) : affiche le réglage et, pour les freins, le pont, le moteur et les roues motrices, la valeur d'usine et la valeur réellement en vigueur dans MTS. Sert à vérifier qu'un réglage est bien pris en compte (par ex. « Freins : usine 1.000 -> actuel 1.600 »).
+
+**/mnbanc apply** (OP) : force l'application du réglage mémorisé sur le véhicule le plus proche et affiche le résultat de chaque étape (puissance, régime, limiteur, usure, suralimentation, roues, pont/freins) avec les éventuels échecs ou écarts de valeur ; à lancer puis suivre de **/mnbanc debug** pour voir les valeurs réellement en vigueur.

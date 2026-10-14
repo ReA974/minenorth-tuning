@@ -22,7 +22,8 @@ public final class BancCommands {
 
     private static LiteralArgumentBuilder<CommandSourceStack> root(String name) {
         return Commands.literal(name).requires(s -> s.hasPermission(2))
-                .then(Commands.literal("debug").executes(c -> debug(c.getSource())));
+                .then(Commands.literal("debug").executes(c -> debug(c.getSource(), false)))
+                .then(Commands.literal("apply").executes(c -> debug(c.getSource(), true)));
     }
 
     @SubscribeEvent
@@ -31,7 +32,8 @@ public final class BancCommands {
         e.getDispatcher().register(root("banc"));
     }
 
-    private static int debug(CommandSourceStack src) {
+    /** apply = force l'application du réglage mémorisé sur le véhicule et affiche le détail de chaque étape (puis le diagnostic). */
+    private static int debug(CommandSourceStack src, boolean apply) {
         ServerPlayer p;
         try {
             p = src.getPlayerOrException();
@@ -47,6 +49,14 @@ public final class BancCommands {
                 return 0;
             }
             p.sendSystemMessage(Component.literal("§6[Banc] §f" + TuneAccess.name(v)));
+            if (apply) {
+                java.util.List<String> log = new java.util.ArrayList<>();
+                TuneAccess.Setup setup = TuneAccess.Setup.read(v);
+                boolean ok = TuneAccess.applyTune(v, setup, log);
+                TuneService.track(v);
+                p.sendSystemMessage(Component.literal(ok ? "§aRéglage appliqué." : "§cRéglage NON appliqué (ou partiel)."));
+                for (String line : log) p.sendSystemMessage(Component.literal("§e" + line));
+            }
             for (String line : TuneAccess.diagnose(v)) p.sendSystemMessage(Component.literal("§7" + line));
             return 1;
         } catch (Throwable t) {

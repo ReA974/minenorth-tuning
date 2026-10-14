@@ -25,7 +25,7 @@ public final class TuneAccess {
     public static final String TUNE = "mnrp_tune";
 
     /** Niveaux : puissance (la « consommation » MTS est la force motrice), régime maximal, usure du moteur. */
-    public static final double[] POWER = {1.00, 1.25, 1.50, 2.00};
+    public static final double[] POWER = {1.00, 1.35, 1.75, 2.40};
     public static final double[] RPM = {1.00, 1.03, 1.06, 1.10};
     public static final double[] WEAR = {1.00, 1.30, 1.70, 2.30};
     /** Adhérence des roues motrices : MTS plafonne la force motrice à masse x friction, la puissance seule ne sert à rien tant que les roues patinent. */
@@ -35,13 +35,13 @@ public final class TuneAccess {
     /** Options indépendantes des stages (rangées dans les données persistantes du véhicule, comme le stage). */
     public static final String BOOST_KEY = "mnrp_boost", AXLE_KEY = "mnrp_axle", TIRES_KEY = "mnrp_tires", BRAKES_KEY = "mnrp_brakes";
     /** Suralimentation (aucune / compresseur / turbo) : puissance ajoutée (part de la puissance d'usine) et usure du moteur. */
-    public static final double[] BOOST_POWER = {0, 0.25, 0.45}, BOOST_WEAR = {1.00, 1.15, 1.50};
+    public static final double[] BOOST_POWER = {0, 0.30, 0.55}, BOOST_WEAR = {1.00, 1.15, 1.50};
     /** Rapport de pont (origine / court / long) : un pont court accélère plus fort mais plafonne plus tôt. */
     public static final double[] AXLE = {1.00, 1.15, 0.88};
     /** Pneus (origine / sport / course) : adhérence de traction de toutes les roues et tenue latérale. */
     public static final double[] TIRE_MOTIVE = {1.00, 1.10, 1.20}, TIRE_LATERAL = {1.00, 1.15, 1.30};
     /** Freins (origine / sport / course). */
-    public static final double[] BRAKES = {1.00, 1.25, 1.50};
+    public static final double[] BRAKES = {1.00, 1.60, 2.30};
 
     /** Réglage complet d'un véhicule : niveau de moteur et options. */
     public record Setup(int stage, int boost, int axle, int tires, int brakes) {
@@ -229,6 +229,40 @@ public final class TuneAccess {
         } catch (Throwable t) {
             return s.axle() == 0 && s.brakes() == 0;
         }
+    }
+
+    private static String f(double v) { return Double.isNaN(v) ? "?" : String.format(java.util.Locale.ROOT, "%.3f", v); }
+
+    /**
+     * Diagnostic (/banc debug) : valeurs d'usine et valeurs réellement en vigueur dans MTS (freins, pont, moteur, roues motrices), pour vérifier
+     * que le réglage est bien pris en compte par le véhicule.
+     */
+    public static List<String> diagnose(Entity e) {
+        List<String> out = new ArrayList<>();
+        Setup s = Setup.read(e);
+        out.add("Réglage : stage " + s.stage() + ", suralim. " + s.boost() + ", pont " + s.axle() + ", pneus " + s.tires() + ", freins " + s.brakes());
+        Object v = inner(e);
+        Object motorized = field(field(v, "definition"), "motorized");
+        if (v == null || motorized == null) { out.add("Véhicule MTS illisible."); return out; }
+        out.add("Freins : usine " + f(number(motorized, "brakingFactor", Double.NaN)) + " -> actuel " + f(valueOf(field(v, "brakingFactorVar")))
+                + " (attendu x" + f(BRAKES[s.brakes()]) + ")");
+        out.add("Pont : usine " + f(number(motorized, "axleRatio", Double.NaN)) + " -> actuel " + f(valueOf(field(v, "axleRatioVar"))));
+        int i = 0;
+        for (Object eng : engines(e)) {
+            Object def = engineDef(eng);
+            out.add("Moteur " + (++i) + " : puissance usine " + f(number(def, "fuelConsumption", Double.NaN)) + " -> actuelle " + f(valueOf(field(eng, "fuelConsumptionVar")))
+                    + ", régime max " + f(number(def, "maxRPM", Double.NaN)) + " -> " + f(valueOf(field(eng, "maxRPMVar")))
+                    + ", suralim. " + f(valueOf(field(eng, "superchargerFuelConsumptionVar"))));
+            if (field(eng, "drivenWheels") instanceof Iterable<?> dw) {
+                int n = 0;
+                for (Object w : dw) {
+                    if (++n > 4) break;
+                    out.add("  roue motrice " + n + " : adhérence usine " + f(factoryFriction(w, "motiveFriction")) + " -> actuelle " + f(valueOf(field(w, "motiveFrictionVar"))));
+                }
+            }
+        }
+        if (i == 0) out.add("Aucun moteur lisible.");
+        return out;
     }
 
     /**

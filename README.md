@@ -24,7 +24,7 @@ Si un moteur n'accepte pas le réglage, le banc répond « moteur non pris en ch
 Objet `banc_dyno` (fer en blocs / pistons / diamant / bloc de redstone) : pose d'un coup une plateforme basse bleue de **4 de large (à droite du joueur) sur 6 de long (devant lui)**
 avec quatre rouleaux sous les roues, comme un vrai banc. Il faut 32 cases libres et être patron / gérant d'une entreprise active. On roule dessus ; clic droit sur
 n'importe quelle case = diagnostic et reprogrammation (même service que le banc de puissance, véhicule jusqu'à 12 blocs). Casser une case retire tout le banc.
-Niveaux renforcés : Stage 1 / 2 / 3 = +25 % / +50 % / +100 % de puissance, +3 / +6 / +10 % de régime max. Adhérence des roues motrices +10 / +20 / +35 % (MTS plafonne la force motrice à masse × friction : sans grip supplémentaire, la puissance seule ne change rien au départ). L'ancien bloc `banc_puissance` (1 bloc) reste enregistré pour les bancs déjà posés
+Niveaux renforcés : Stage 1 / 2 / 3 = +35 % / +75 % / +140 % de puissance (valeurs du 14/10, plus marquées), +3 / +6 / +10 % de régime max. Adhérence des roues motrices +10 / +20 / +35 % (MTS plafonne la force motrice à masse × friction : sans grip supplémentaire, la puissance seule ne change rien au départ). L'ancien bloc `banc_puissance` (1 bloc) reste enregistré pour les bancs déjà posés
 mais n'est plus dans l'onglet créatif.
 
 ## Options (écran du banc, onglets)
@@ -32,12 +32,15 @@ Indépendantes des stages et cumulables ; rangées sur le véhicule comme le sta
 
 | Onglet | Choix | Effet |
 |---|---|---|
-| Suralim. | Compresseur / Turbo | +25 % / +45 % de la puissance d'usine, usure +15 % / +50 %, consommation en hausse (refusé si le moteur est déjà suralimenté d'usine) |
+| Suralim. | Compresseur / Turbo | +30 % / +55 % de la puissance d'usine, usure +15 % / +50 %, consommation en hausse (refusé si le moteur est déjà suralimenté d'usine) |
 | Pont | Court / Long | Accélération +15 % / -12 %, vitesse de pointe -13 % / +14 % (rapport de pont du véhicule) |
 | Pneus | Sport / Course | Adhérence de traction de TOUTES les roues +10 % / +20 %, tenue latérale +15 % / +30 % |
-| Freins | Sport / Course | Freinage +25 % / +50 % |
+| Freins | Sport / Course | Freinage +60 % / +130 % |
 
 Chaque réglage part des valeurs d'usine (aucun cumul en le refaisant) ; un pneu crevé n'est pas modifié.
 
 ## Compiler
 Java 17. Builder d'abord `minenorth-api` puis `minenorth-entreprises` (jars lus dans leurs `build/libs`), puis `./gradlew build`.
+
+## Diagnostic
+**/banc debug** (OP, à moins de 8 blocs d'un véhicule MTS) : affiche le réglage et, pour les freins, le pont, le moteur et les roues motrices, la valeur d'usine et la valeur réellement en vigueur dans MTS. Sert à vérifier qu'un réglage est bien pris en compte (par ex. « Freins : usine 1.000 -> actuel 1.600 »).

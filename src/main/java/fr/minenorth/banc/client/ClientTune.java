@@ -47,10 +47,17 @@ public final class ClientTune {
 
     @SubscribeEvent
     public static void onTick(TickEvent.ClientTickEvent e) {
-        if (e.phase != TickEvent.Phase.END || STATE.isEmpty() || ++counter < 20) return;
-        counter = 0;
+        if (e.phase != TickEvent.Phase.END || STATE.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) { STATE.clear(); MISSING.clear(); return; }
+        // poussée directe de la nitro, à chaque tick (même calcul que le serveur : la voiture est aussi simulée chez le joueur)
+        for (BancNetwork.TuneSync s : STATE.values()) {
+            if (!s.nitroOn()) continue;
+            Entity v = mc.level.getEntity(s.entityId());
+            if (v != null && !v.isRemoved()) TuneAccess.push(v, TuneAccess.NITRO_ACCEL[Math.max(0, Math.min(3, s.nitro()))]);
+        }
+        if (++counter < 20) return;
+        counter = 0;
         for (Iterator<Map.Entry<Integer, BancNetwork.TuneSync>> it = STATE.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Integer, BancNetwork.TuneSync> en = it.next();
             Entity v = mc.level.getEntity(en.getKey());

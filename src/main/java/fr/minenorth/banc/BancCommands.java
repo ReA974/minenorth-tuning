@@ -23,13 +23,47 @@ public final class BancCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> root(String name) {
         return Commands.literal(name).requires(s -> s.hasPermission(2))
                 .then(Commands.literal("debug").executes(c -> debug(c.getSource(), false)))
-                .then(Commands.literal("apply").executes(c -> debug(c.getSource(), true)));
+                .then(Commands.literal("apply").executes(c -> debug(c.getSource(), true)))
+                // test de la nitro sans passer par la touche (assis dans le véhicule) : fill = réserve pleine, on = injection, off = arrêt
+                .then(Commands.literal("nitro")
+                        .then(Commands.literal("fill").executes(c -> nitro(c.getSource(), 0)))
+                        .then(Commands.literal("on").executes(c -> nitro(c.getSource(), 1)))
+                        .then(Commands.literal("off").executes(c -> nitro(c.getSource(), 2))));
     }
 
     @SubscribeEvent
     public static void register(RegisterCommandsEvent e) {
         e.getDispatcher().register(root("mnbanc"));
         e.getDispatcher().register(root("banc"));
+    }
+
+    private static int nitro(CommandSourceStack src, int what) {
+        ServerPlayer p;
+        try {
+            p = src.getPlayerOrException();
+        } catch (Exception ex) {
+            src.sendFailure(Component.literal("Commande à lancer en jeu."));
+            return 0;
+        }
+        Entity v = TuneAccess.nearest(p.serverLevel(), p.position(), 8);
+        if (v == null) { p.sendSystemMessage(Component.literal("§cAucun véhicule MTS à moins de 8 blocs.")); return 0; }
+        TuneAccess.Setup s = TuneAccess.Setup.read(v);
+        switch (what) {
+            case 0 -> {
+                v.getPersistentData().putInt(TuneAccess.CHARGE_KEY, NitroService.MAX_TICKS);
+                p.sendSystemMessage(Component.literal("§aRéserve de nitro pleine : " + NitroService.reserve(v) + " (kit niveau " + s.nitro() + ")."));
+            }
+            case 1 -> {
+                p.sendSystemMessage(Component.literal("§7Kit nitro : niveau " + s.nitro() + ", réserve " + NitroService.reserve(v) + ", assis dans le véhicule : " + (p.getVehicle() != null)));
+                NitroService.setKey(p, true);
+                p.sendSystemMessage(Component.literal(NitroService.isActive(v) ? "§aNitro ACTIVE (son + poussée + flammes)." : "§cNitro non activée (voir le message d'action ci-dessus)."));
+            }
+            default -> {
+                NitroService.setKey(p, false);
+                p.sendSystemMessage(Component.literal("§7Nitro arrêtée."));
+            }
+        }
+        return 1;
     }
 
     /** apply = force l'application du réglage mémorisé sur le véhicule et affiche le détail de chaque étape (puis le diagnostic). */

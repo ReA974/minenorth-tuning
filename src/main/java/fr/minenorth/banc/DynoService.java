@@ -89,7 +89,7 @@ public final class DynoService {
                         + (cur0.nitro() > 0 ? " (réserve " + NitroService.reserve(v) + ")" : ""));
                 for (int i = 0; i <= TuneAccess.MAX_STAGE; i++) {
                     String detail = i == 0 ? "Remise aux réglages d'usine"
-                            : "Puissance " + pct(TuneAccess.POWER[i]) + ", régime " + pct(TuneAccess.RPM[i]) + ", adhérence " + pct(TuneAccess.GRIP[i]) + ", usure " + pct(TuneAccess.WEAR[i]);
+                            : "Puissance " + pct(TuneAccess.POWER[i]) + ", usure du moteur " + pct(TuneAccess.WEAR[i]);
                     rows.add(new Row(0, STAGE_NAMES[i], detail, i == cur0.stage()));
                 }
                 for (int i = 0; i < AXLE_NAMES.length; i++)
@@ -102,7 +102,7 @@ public final class DynoService {
                     rows.add(new Row(4, BRAKE_NAMES[i], i == 0 ? "Freins d'usine" : "Freinage " + pct(TuneAccess.BRAKES[i]), i == cur0.brakes()));
                 for (int i = 0; i < NITRO_NAMES.length; i++)
                     rows.add(new Row(5, NITRO_NAMES[i], i == 0 ? "Retire le kit nitro"
-                            : "Puissance " + pct(1 + TuneAccess.NITRO_POWER[i]) + " pendant l'injection, flamme " + NITRO_COLORS[i] + ". Touche d'injection au volant", i == cur0.nitro()));
+                            : "Poussée +" + Math.round(TuneAccess.NITRO_ACCEL[i] * 1000) + " pendant l'injection, flamme " + NITRO_COLORS[i] + ". Touche au volant", i == cur0.nitro()));
             }
         }
         BancNetwork.send(p, new BancNetwork.State(be.getBlockPos(), EntrepriseApi.companyName(p.server, be.companyId), vehicle, message, ok, lines, rows));

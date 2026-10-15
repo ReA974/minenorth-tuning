@@ -26,10 +26,10 @@ public final class TuneAccess {
 
     /** Niveaux : puissance (la « consommation » MTS est la force motrice), régime maximal, usure du moteur. */
     public static final double[] POWER = {1.00, 1.50, 2.20, 3.20};
-    public static final double[] RPM = {1.00, 1.03, 1.06, 1.10};
+    public static final double[] RPM = {1.00, 1.00, 1.00, 1.00};   // régime inchangé (15/10) : seule la puissance monte
     public static final double[] WEAR = {1.00, 1.30, 1.70, 2.30};
     /** Adhérence des roues motrices : MTS plafonne la force motrice à masse x friction, la puissance seule ne sert à rien tant que les roues patinent. */
-    public static final double[] GRIP = {1.00, 1.15, 1.30, 1.50};
+    public static final double[] GRIP = {1.00, 1.00, 1.00, 1.00};   // adhérence inchangée (15/10) : les stages ne touchent plus aux roues
     public static final int MAX_STAGE = 3;
 
     /** Options indépendantes des stages (rangées dans les données persistantes du véhicule, comme le stage). */
@@ -45,7 +45,9 @@ public final class TuneAccess {
      * maintenue. Pendant l'injection : puissance multipliée par (1 + NITRO_POWER) et adhérence des roues motrices par NITRO_GRIP.
      */
     public static final String NITRO_KEY = "mnrp_nitro", CHARGE_KEY = "mnrp_nitro_charge";
-    public static final double[] NITRO_POWER = {0, 0.40, 0.80, 1.30}, NITRO_GRIP = {1.00, 1.08, 1.16, 1.25};
+    public static final double[] NITRO_POWER = {0, 0.40, 0.80, 1.30}, NITRO_GRIP = {1.00, 1.00, 1.00, 1.00},
+            /** Poussée directe pendant l'injection (blocs/tick gagnés à chaque tick, vers l'avant) : MTS plafonne la force motrice par l'adhérence, une hausse de puissance seule ne se sent pas. */
+            NITRO_ACCEL = {0, 0.008, 0.014, 0.022};
     /** Freins (origine / sport / course). */
     public static final double[] BRAKES = {1.00, 1.60, 2.30};
 
@@ -126,6 +128,20 @@ public final class TuneAccess {
     }
 
     private static Object inner(Entity e) { return field(e, "entity"); }
+
+    /** Poussée directe de la nitro : ajoute {@code accel} à la vitesse du véhicule, vers l'avant (plafonnée à ~216 km/h). */
+    public static void push(Entity e, double accel) {
+        try {
+            Object motion = field(inner(e), "motion");
+            double[] h = heading(e);
+            if (motion == null || h == null) return;
+            double mx = number(motion, "x", 0), mz = number(motion, "z", 0);
+            if (Math.hypot(mx, mz) > 3.0) return;
+            Field fx = findField(motion.getClass(), "x"), fz = findField(motion.getClass(), "z");
+            fx.setDouble(motion, mx + h[0] * accel);
+            fz.setDouble(motion, mz + h[1] * accel);
+        } catch (Throwable ignored) {}
+    }
 
     /** Direction horizontale (avant) du véhicule : {x, z} normalisé, ou null si MTS est illisible. */
     public static double[] heading(Entity e) {

@@ -69,6 +69,7 @@ public final class NitroService {
 
     /** Reçu du client : la touche d'injection vient d'être enfoncée / relâchée. */
     public static void setKey(ServerPlayer p, boolean down) {
+        com.mojang.logging.LogUtils.getLogger().info("[Banc] Touche nitro {} par {} (assis : {})", down ? "ENFONCEE" : "relachee", p.getGameProfile().getName(), p.getVehicle() != null);
         if (!down) {
             for (Map.Entry<Entity, UUID> en : ACTIVE.entrySet()) if (en.getValue().equals(p.getUUID())) deactivate(en.getKey());
             return;
@@ -91,6 +92,7 @@ public final class NitroService {
             ServerLevel l = p.serverLevel();
             l.playSound(null, v.blockPosition(), ModBanc.NITRO_SOUND.get(), SoundSource.NEUTRAL, 1.5f, 1.0f);   // nitro.ogg (11,8 s)
             SOUND_AGE.put(v, 0);
+            p.displayClientMessage(Component.literal("§bNitro " + "I".repeat(s.nitro()) + " activée §7(réserve " + reserve(v) + ")"), true);
         }
     }
 
@@ -141,7 +143,9 @@ public final class NitroService {
                 SOUND_AGE.put(v, 0);
                 ((ServerLevel) v.level()).playSound(null, v.blockPosition(), ModBanc.NITRO_SOUND.get(), SoundSource.NEUTRAL, 1.5f, 1.0f);
             }
-            flames((ServerLevel) v.level(), v, TuneAccess.Setup.read(v).nitro());
+            int lvl = TuneAccess.Setup.read(v).nitro();
+            TuneAccess.push(v, TuneAccess.NITRO_ACCEL[lvl]);   // poussée directe (la force motrice est plafonnée par l'adhérence)
+            flames((ServerLevel) v.level(), v, lvl);
         }
     }
 

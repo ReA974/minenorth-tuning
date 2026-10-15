@@ -18,5 +18,7 @@ public final class SharedTab {
         e.accept(ModBanc.NITRO_BOTTLE);
         e.accept(ModBanc.OBD_TOOL);
         e.accept(ModBanc.ENGINE_KIT);
+        e.accept(ModBanc.TIRE_MACHINE_ITEM);
+        e.accept(ModBanc.TIRE_KIT);
     }
 }

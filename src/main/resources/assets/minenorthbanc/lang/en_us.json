@@ -5,6 +5,8 @@
     "item.minenorthbanc.banc_dyno":  "Dyno bench (6x4)",
     "block.minenorthbanc.nitro_cart":  "Chariot de nitro",
     "item.minenorthbanc.nitro_bottle":  "Bouteille de nitro",
+    "block.minenorthbanc.machine_pneus":  "Machine à pneus",
+    "item.minenorthbanc.tire_kit":  "Kit anti-crevaison",
     "item.minenorthbanc.obd2":  "Outil OBD2",
     "item.minenorthbanc.engine_kit":  "Kit de réparation moteur",
     "key.minenorthbanc.nitro":  "Injection de nitro (maintenir)",

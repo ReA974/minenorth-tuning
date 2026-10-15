@@ -44,14 +44,27 @@ public final class TireService {
         return k != null && k.getNamespace().equals("tacz") && k.getPath().contains("bullet");
     }
 
+    /** Véhicules chargés, pour recompter leurs roues crevées (voir FlatDrag). */
+    private static final java.util.Set<Entity> VEHICLES = ConcurrentHashMap.newKeySet();
+    private static int counter;
+
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent e) {
-        if (!e.getLevel().isClientSide() && isBullet(e.getEntity())) BULLETS.put(e.getEntity(), new Vec3[] {e.getEntity().position(), e.getEntity().getDeltaMovement()});
+        if (e.getLevel().isClientSide()) return;
+        if (isBullet(e.getEntity())) BULLETS.put(e.getEntity(), new Vec3[] {e.getEntity().position(), e.getEntity().getDeltaMovement()});
+        else if (MtsTires.isVehicle(e.getEntity())) VEHICLES.add(e.getEntity());
     }
 
     @SubscribeEvent
     public static void onTick(TickEvent.ServerTickEvent e) {
-        if (e.phase != TickEvent.Phase.END || BULLETS.isEmpty()) return;
+        if (e.phase != TickEvent.Phase.END) return;
+        if (++counter >= 10) {
+            counter = 0;
+            VEHICLES.removeIf(Entity::isRemoved);
+            for (Entity v : VEHICLES) FlatDrag.refresh(v);
+        }
+        FlatDrag.tick();
+        if (BULLETS.isEmpty()) return;
         for (var it = BULLETS.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Entity, Vec3[]> en = it.next();
             Entity b = en.getKey();

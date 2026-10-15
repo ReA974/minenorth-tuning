@@ -46,6 +46,12 @@ public final class ModBanc {
     /** Kit de réparation moteur : consommé pour remettre le moteur d'un véhicule à neuf (personnel d'entreprise). */
     public static final RegistryObject<Item> ENGINE_KIT = ITEMS.register("engine_kit", () -> new Item(new Item.Properties().stacksTo(16)));
 
+    // ---- pneus
+    /** Kit anti-crevaison : un par pneu réparé à la machine à pneus. */
+    public static final RegistryObject<Item> TIRE_KIT = ITEMS.register("tire_kit", () -> new Item(new Item.Properties().stacksTo(32)));
+    public static final RegistryObject<Block> TIRE_MACHINE = BLOCKS.register("machine_pneus", TireMachineBlock::new);
+    public static final RegistryObject<Item> TIRE_MACHINE_ITEM = ITEMS.register("machine_pneus", () -> new BlockItem(TIRE_MACHINE.get(), new Item.Properties()));
+
     public static void register(IEventBus bus) {
         BLOCKS.register(bus);
         ITEMS.register(bus);

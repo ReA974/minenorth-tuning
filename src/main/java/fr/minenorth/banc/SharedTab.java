@@ -12,6 +12,9 @@ public final class SharedTab {
 
     @SubscribeEvent
     public static void fill(BuildCreativeModeTabContentsEvent e) {
-        if (e.getTabKey().location().equals(new ResourceLocation("minenorthapi", "minenorth"))) e.accept(ModBanc.BENCH_ITEM);
+        if (!e.getTabKey().location().equals(new ResourceLocation("minenorthapi", "minenorth"))) return;
+        e.accept(ModBanc.BENCH_ITEM);
+        e.accept(ModBanc.NITRO_CART_ITEM);
+        e.accept(ModBanc.NITRO_BOTTLE);
     }
 }

@@ -40,37 +40,45 @@ public final class TuneAccess {
     public static final double[] AXLE = {1.00, 1.15, 0.88};
     /** Pneus (origine / sport / course) : adhérence de traction de toutes les roues et tenue latérale. */
     public static final double[] TIRE_MOTIVE = {1.00, 1.10, 1.20}, TIRE_LATERAL = {1.00, 1.15, 1.30};
+    /**
+     * Nitro (aucune / I / II / III) : kit installé au banc (clé ci-dessous), réserve de gaz en ticks (clé CHARGE), injection tant que la touche est
+     * maintenue. Pendant l'injection : puissance multipliée par (1 + NITRO_POWER) et adhérence des roues motrices par NITRO_GRIP.
+     */
+    public static final String NITRO_KEY = "mnrp_nitro", CHARGE_KEY = "mnrp_nitro_charge";
+    public static final double[] NITRO_POWER = {0, 0.40, 0.80, 1.30}, NITRO_GRIP = {1.00, 1.08, 1.16, 1.25};
     /** Freins (origine / sport / course). */
     public static final double[] BRAKES = {1.00, 1.60, 2.30};
 
     /** Réglage complet d'un véhicule : niveau de moteur et options. */
-    public record Setup(int stage, int boost, int axle, int tires, int brakes) {
-        public static final int STAGE = 0, BOOST = 1, AXLE_G = 2, TIRES = 3, BRAKES_G = 4;
+    public record Setup(int stage, int boost, int axle, int tires, int brakes, int nitro) {
+        public static final int STAGE = 0, BOOST = 1, AXLE_G = 2, TIRES = 3, BRAKES_G = 4, NITRO_G = 5;
 
         public static Setup read(Entity e) {
             var t = e.getPersistentData();
             return new Setup(clamp(t.getInt(TUNE), MAX_STAGE), clamp(t.getInt(BOOST_KEY), 2), clamp(t.getInt(AXLE_KEY), 2),
-                    clamp(t.getInt(TIRES_KEY), 2), clamp(t.getInt(BRAKES_KEY), 2));
+                    clamp(t.getInt(TIRES_KEY), 2), clamp(t.getInt(BRAKES_KEY), 2), clamp(t.getInt(NITRO_KEY), 3));
         }
 
         public void write(Entity e) {
             var t = e.getPersistentData();
             t.putInt(TUNE, stage); t.putInt(BOOST_KEY, boost); t.putInt(AXLE_KEY, axle); t.putInt(TIRES_KEY, tires); t.putInt(BRAKES_KEY, brakes);
+            t.putInt(NITRO_KEY, nitro);
         }
 
-        public boolean stock() { return stage == 0 && boost == 0 && axle == 0 && tires == 0 && brakes == 0; }
+        public boolean stock() { return stage == 0 && boost == 0 && axle == 0 && tires == 0 && brakes == 0 && nitro == 0; }
 
         public int get(int group) {
-            return switch (group) { case STAGE -> stage; case BOOST -> boost; case AXLE_G -> axle; case TIRES -> tires; default -> brakes; };
+            return switch (group) { case STAGE -> stage; case BOOST -> boost; case AXLE_G -> axle; case TIRES -> tires; case NITRO_G -> nitro; default -> brakes; };
         }
 
         public Setup with(int group, int v) {
             return switch (group) {
-                case STAGE -> new Setup(v, boost, axle, tires, brakes);
-                case BOOST -> new Setup(stage, v, axle, tires, brakes);
-                case AXLE_G -> new Setup(stage, boost, v, tires, brakes);
-                case TIRES -> new Setup(stage, boost, axle, v, brakes);
-                default -> new Setup(stage, boost, axle, tires, v);
+                case STAGE -> new Setup(v, boost, axle, tires, brakes, nitro);
+                case BOOST -> new Setup(stage, v, axle, tires, brakes, nitro);
+                case AXLE_G -> new Setup(stage, boost, v, tires, brakes, nitro);
+                case TIRES -> new Setup(stage, boost, axle, v, brakes, nitro);
+                case NITRO_G -> new Setup(stage, boost, axle, tires, brakes, v);
+                default -> new Setup(stage, boost, axle, tires, v, nitro);
             };
         }
 
@@ -117,6 +125,19 @@ public final class TuneAccess {
     }
 
     private static Object inner(Entity e) { return field(e, "entity"); }
+
+    /** Direction horizontale (avant) du véhicule : {x, z} normalisé, ou null si MTS est illisible. */
+    public static double[] heading(Entity e) {
+        try {
+            Object p = field(inner(e), "headingVector");
+            double x = number(p, "x", Double.NaN), z = number(p, "z", Double.NaN);
+            double len = Math.sqrt(x * x + z * z);
+            if (Double.isNaN(len) || len < 1e-6) return null;
+            return new double[]{x / len, z / len};
+        } catch (Throwable t) {
+            return null;
+        }
+    }
 
     /** Nom du modèle (sous-définition MTS), ou l'identifiant système si illisible. */
     public static String name(Entity e) {
@@ -409,14 +430,15 @@ public final class TuneAccess {
             step(log, "moteur (définition)", () -> {
                 Object od = original(eng), oe = field(od, "engine");
                 if (oe == null) throw new IllegalStateException("définition de moteur illisible");
-                if (allOne(POWER[s.stage()], RPM[s.stage()], WEAR[s.stage()]) && s.boost() == 0) {
+                double nitroMul = 1 + (NitroService.isActive(e) ? NITRO_POWER[s.nitro()] : 0);
+                if (allOne(POWER[s.stage()] * nitroMul, RPM[s.stage()], WEAR[s.stage()]) && s.boost() == 0) {
                     putDefinition(eng, od);
                     done[0] = true;
                     return;
                 }
                 Object nd = shallowCopy(od), ne = shallowCopy(oe);
                 double fuel = number(oe, "fuelConsumption", 0), rpm = RPM[s.stage()];
-                setNum(ne, "fuelConsumption", fuel * POWER[s.stage()]);
+                setNum(ne, "fuelConsumption", fuel * POWER[s.stage()] * nitroMul);
                 setNum(ne, "maxRPM", number(oe, "maxRPM", 0) * rpm);
                 if (number(oe, "revlimitRPM", 0) > 0) setNum(ne, "revlimitRPM", number(oe, "revlimitRPM", 0) * rpm);
                 if (number(oe, "maxSafeRPM", 0) > 0) setNum(ne, "maxSafeRPM", number(oe, "maxSafeRPM", 0) * rpm);
@@ -440,7 +462,7 @@ public final class TuneAccess {
             step(log, "roue (définition)", () -> {
                 Object od = original(w), og = field(od, "ground");
                 if (og == null) return;
-                double stage = driven.contains(w) ? GRIP[s.stage()] : 1.0, tire = TIRE_MOTIVE[s.tires()], lat = TIRE_LATERAL[s.tires()];
+                double stage = driven.contains(w) ? GRIP[s.stage()] * (NitroService.isActive(e) ? NITRO_GRIP[s.nitro()] : 1.0) : 1.0, tire = TIRE_MOTIVE[s.tires()], lat = TIRE_LATERAL[s.tires()];
                 if (allOne(stage, tire, lat)) {
                     putDefinition(w, od);
                     return;
@@ -486,7 +508,7 @@ public final class TuneAccess {
                 continue;
             }
             double fuel = number(def, "fuelConsumption", 0);
-            boolean ok = step(log, "puissance", () -> setChecked(log, "puissance", eng, "fuelConsumptionVar", fuel * POWER[s.stage()]));
+            boolean ok = step(log, "puissance", () -> setChecked(log, "puissance", eng, "fuelConsumptionVar", fuel * POWER[s.stage()] * (1 + (NitroService.isActive(e) ? NITRO_POWER[s.nitro()] : 0))));
             step(log, "régime max", () -> setChecked(log, "régime max", eng, "maxRPMVar", number(def, "maxRPM", 0) * RPM[s.stage()]));
             double rev = number(def, "revlimitRPM", 0), safe = number(def, "maxSafeRPM", 0), wear = number(def, "engineWearFactor", 0);
             if (rev > 0) step(log, "limiteur", () -> setChecked(log, "limiteur", eng, "revLimitRPMVar", rev * RPM[s.stage()]));

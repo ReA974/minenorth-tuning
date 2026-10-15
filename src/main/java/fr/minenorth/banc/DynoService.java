@@ -31,7 +31,8 @@ public final class DynoService {
     private static final int STAFF = 99, MANAGER = 0;
     private static final String[] STAGE_NAMES = {"Origine (usine)", "Stage 1", "Stage 2", "Stage 3"};
     private static final String[] BOOST_NAMES = {"Aucune", "Compresseur", "Turbo"}, AXLE_NAMES = {"Pont d'origine", "Pont court", "Pont long"},
-            TIRE_NAMES = {"Pneus d'origine", "Pneus sport", "Pneus course"}, BRAKE_NAMES = {"Freins d'origine", "Freins sport", "Freins course"};
+            TIRE_NAMES = {"Pneus d'origine", "Pneus sport", "Pneus course"}, BRAKE_NAMES = {"Freins d'origine", "Freins sport", "Freins course"},
+            NITRO_NAMES = {"Aucun kit", "Nitro I", "Nitro II", "Nitro III"}, NITRO_COLORS = {"", "orange", "bleue", "violette"};
 
     /** Identifiant de l'entreprise active du joueur s'il en est patron ou gérant (peut poser le banc), sinon -1. */
     public static int managedCompany(ServerPlayer p) {
@@ -84,7 +85,8 @@ public final class DynoService {
                 lines.add(String.format(Locale.ROOT, "Indice de puissance : %.0f  (origine %.0f, %s)", idx, base, pct(base == 0 ? 1 : idx / base)));
                 lines.add(String.format(Locale.ROOT, "Régime maximal : %.0f tr/min  (origine %.0f)", cur.maxRpm(), f.maxRpm()));
                 lines.add("Boîte : " + (f.gears() > 0 ? f.gears() + " rapports" : "automatique / inconnue"));
-                lines.add("Options : " + BOOST_NAMES[cur0.boost()] + ", " + AXLE_NAMES[cur0.axle()] + ", " + TIRE_NAMES[cur0.tires()] + ", " + BRAKE_NAMES[cur0.brakes()]);
+                lines.add("Options : " + BOOST_NAMES[cur0.boost()] + ", " + AXLE_NAMES[cur0.axle()] + ", " + TIRE_NAMES[cur0.tires()] + ", " + BRAKE_NAMES[cur0.brakes()] + ", " + NITRO_NAMES[cur0.nitro()]
+                        + (cur0.nitro() > 0 ? " (réserve " + NitroService.reserve(v) + ")" : ""));
                 for (int i = 0; i <= TuneAccess.MAX_STAGE; i++) {
                     String detail = i == 0 ? "Remise aux réglages d'usine"
                             : "Puissance " + pct(TuneAccess.POWER[i]) + ", régime " + pct(TuneAccess.RPM[i]) + ", adhérence " + pct(TuneAccess.GRIP[i]) + ", usure " + pct(TuneAccess.WEAR[i]);
@@ -101,6 +103,9 @@ public final class DynoService {
                             : "Adhérence " + pct(TuneAccess.TIRE_MOTIVE[i]) + ", tenue de route " + pct(TuneAccess.TIRE_LATERAL[i]), i == cur0.tires()));
                 for (int i = 0; i < BRAKE_NAMES.length; i++)
                     rows.add(new Row(4, BRAKE_NAMES[i], i == 0 ? "Freins d'usine" : "Freinage " + pct(TuneAccess.BRAKES[i]), i == cur0.brakes()));
+                for (int i = 0; i < NITRO_NAMES.length; i++)
+                    rows.add(new Row(5, NITRO_NAMES[i], i == 0 ? "Retire le kit nitro"
+                            : "Puissance " + pct(1 + TuneAccess.NITRO_POWER[i]) + " pendant l'injection, flamme " + NITRO_COLORS[i] + ". Touche d'injection au volant", i == cur0.nitro()));
             }
         }
         BancNetwork.send(p, new BancNetwork.State(be.getBlockPos(), EntrepriseApi.companyName(p.server, be.companyId), vehicle, message, ok, lines, rows));
@@ -117,8 +122,8 @@ public final class DynoService {
         Entity v = vehicleNear(p, be);
         if (v == null) { send(p, be, "Aucun véhicule à proximité du banc.", false); return; }
         TuneAccess.Setup old = TuneAccess.Setup.read(v);
-        int max = a.group() == TuneAccess.Setup.STAGE ? TuneAccess.MAX_STAGE : 2;
-        if (a.group() < 0 || a.group() > TuneAccess.Setup.BRAKES_G || a.index() < 0 || a.index() > max) return;
+        int max = a.group() == TuneAccess.Setup.STAGE || a.group() == TuneAccess.Setup.NITRO_G ? TuneAccess.MAX_STAGE : 2;
+        if (a.group() < 0 || a.group() > TuneAccess.Setup.NITRO_G || a.index() < 0 || a.index() > max) return;
         TuneAccess.Setup next = old.with(a.group(), a.index());
         if (next.equals(old)) { send(p, be, "Le véhicule est déjà réglé ainsi.", false); return; }
         if (!TuneAccess.applyTune(v, next)) {
@@ -137,6 +142,7 @@ public final class DynoService {
             case 1 -> a.index() == 0 ? "Suralimentation retirée." : BOOST_NAMES[a.index()] + " installé.";
             case 2 -> AXLE_NAMES[a.index()] + " installé.";
             case 3 -> TIRE_NAMES[a.index()] + " montés.";
+            case 5 -> a.index() == 0 ? "Kit nitro retiré." : NITRO_NAMES[a.index()] + " installé : chargez-le avec des bouteilles (clic droit sur le véhicule ou chariot).";
             default -> BRAKE_NAMES[a.index()] + " montés.";
         };
         send(p, be, what + " Pensez à facturer le client.", true);

@@ -1,6 +1,10 @@
 {
- "block.minenorthbanc.banc_puissance": "Dyno",
- "item.minenorthbanc.banc_puissance": "Dyno",
- "block.minenorthbanc.banc_dyno": "Dyno bench (6x4)",
- "item.minenorthbanc.banc_dyno": "Dyno bench (6x4)"
+    "block.minenorthbanc.banc_puissance":  "Dyno",
+    "item.minenorthbanc.banc_puissance":  "Dyno",
+    "block.minenorthbanc.banc_dyno":  "Dyno bench (6x4)",
+    "item.minenorthbanc.banc_dyno":  "Dyno bench (6x4)",
+    "block.minenorthbanc.nitro_cart":  "Chariot de nitro",
+    "item.minenorthbanc.nitro_bottle":  "Bouteille de nitro",
+    "key.minenorthbanc.nitro":  "Injection de nitro (maintenir)",
+    "key.categories.minenorth":  "MineNorth"
 }

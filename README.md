@@ -46,3 +46,9 @@ Java 17. Builder d'abord `minenorth-api` puis `minenorth-entreprises` (jars lus 
 **/mnbanc debug** (ou /banc debug ; /mnbanc existe car un plugin Bukkit peut déjà posséder /banc sur Arclight ; OP, à moins de 8 blocs d'un véhicule MTS) : affiche le réglage et, pour les freins, le pont, le moteur et les roues motrices, la valeur d'usine et la valeur réellement en vigueur dans MTS. Sert à vérifier qu'un réglage est bien pris en compte (par ex. « Freins : usine 1.000 -> actuel 1.600 »).
 
 **/mnbanc apply** (OP) : force l'application du réglage mémorisé sur le véhicule le plus proche et affiche le résultat de chaque étape (puissance, régime, limiteur, usure, suralimentation, roues, pont/freins) avec les éventuels échecs ou écarts de valeur ; à lancer puis suivre de **/mnbanc debug** pour voir les valeurs réellement en vigueur.
+
+## Nitro (15/10)
+- **Kit au banc** (onglet **Nitro**) : Nitro I / II / III, à facturer au client comme les autres réglages. Pendant l'injection : puissance +40 / +80 / +130 % et adhérence des roues motrices +8 / +16 / +25 %. Flamme des échappements : **orange** (I), **bleue** (II), **violette** (III) (particules courtes + étincelles de feu d'artifice).
+- **Injection** : maintenir la touche **Maj gauche** (réassignable : Contrôles > MineNorth > « Injection de nitro ») au volant d'un véhicule équipé. Elle consomme la réserve (1 s de réserve = 1 s d'injection) ; le message d'action affiche le temps restant.
+- **Réserve** : 15 s par **bouteille de nitro** (craft : poudre de blaze + 5 lingots de fer + redstone = 2 bouteilles), 90 s au maximum par véhicule. Recharge : clic droit sur le véhicule avec une bouteille, ou **chariot de nitro** (craft : coffre + 3 lingots de fer... + 2 wagonnets) : clic droit = inventaire de 9 bouteilles, **clic droit accroupi** = recharge le véhicule le plus proche (6 blocs) avec les bouteilles du chariot.
+- Les sons (wastegate, compresseur) viendront plus tard.

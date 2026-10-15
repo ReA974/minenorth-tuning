@@ -1,6 +1,10 @@
 {
- "block.minenorthbanc.banc_puissance": "Banc de puissance",
- "item.minenorthbanc.banc_puissance": "Banc de puissance",
- "block.minenorthbanc.banc_dyno": "Banc dynamométrique (6×4)",
- "item.minenorthbanc.banc_dyno": "Banc dynamométrique (6×4)"
+    "block.minenorthbanc.banc_puissance":  "Banc de puissance",
+    "item.minenorthbanc.banc_puissance":  "Banc de puissance",
+    "block.minenorthbanc.banc_dyno":  "Banc dynamométrique (6×4)",
+    "item.minenorthbanc.banc_dyno":  "Banc dynamométrique (6×4)",
+    "block.minenorthbanc.nitro_cart":  "Chariot de nitro",
+    "item.minenorthbanc.nitro_bottle":  "Bouteille de nitro",
+    "key.minenorthbanc.nitro":  "Injection de nitro (maintenir)",
+    "key.categories.minenorth":  "MineNorth"
 }

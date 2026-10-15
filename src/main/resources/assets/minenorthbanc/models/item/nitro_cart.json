@@ -1,0 +1,65 @@
+{
+    "parent":  "minenorthbanc:block/nitro_cart",
+    "display":  {
+                    "gui":  {
+                                "rotation":  [
+                                                 30,
+                                                 225,
+                                                 0
+                                             ],
+                                "translation":  [
+                                                    0,
+                                                    -1,
+                                                    0
+                                                ],
+                                "scale":  [
+                                              0.75,
+                                              0.75,
+                                              0.75
+                                          ]
+                            },
+                    "fixed":  {
+                                  "rotation":  [
+                                                   0,
+                                                   180,
+                                                   0
+                                               ],
+                                  "scale":  [
+                                                0.6,
+                                                0.6,
+                                                0.6
+                                            ]
+                              },
+                    "ground":  {
+                                   "translation":  [
+                                                       0,
+                                                       3,
+                                                       0
+                                                   ],
+                                   "scale":  [
+                                                 0.4,
+                                                 0.4,
+                                                 0.4
+                                             ]
+                               },
+                    "thirdperson_righthand":  {
+                                                  "scale":  [
+                                                                0.4,
+                                                                0.4,
+                                                                0.4
+                                                            ]
+                                              },
+                    "firstperson_righthand":  {
+                                                  "rotation":  [
+                                                                   0,
+                                                                   -35,
+                                                                   0
+                                                               ],
+                                                  "scale":  [
+                                                                0.45,
+                                                                0.45,
+                                                                0.45
+                                                            ]
+                                              }
+                }
+}

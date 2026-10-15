@@ -23,7 +23,7 @@ public class DynoScreen extends Screen {
     private int left, top, h, rowsTop, tabsTop;
     private int selected = -1, group;
     private Btn apply;
-    private static final String[] TABS = {"Moteur", "Suralim.", "Pont", "Pneus", "Freins"};
+    private static final String[] TABS = {"Moteur", "Suralim.", "Pont", "Pneus", "Freins", "Nitro"};
     private static final int TAB_H = 20;
 
     private DynoScreen(BancNetwork.State state) {

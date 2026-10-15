@@ -1,0 +1,19 @@
+{
+    "variants":  {
+                     "facing=north":  {
+                                          "model":  "minenorthbanc:block/nitro_cart"
+                                      },
+                     "facing=east":  {
+                                         "model":  "minenorthbanc:block/nitro_cart",
+                                         "y":  90
+                                     },
+                     "facing=south":  {
+                                          "model":  "minenorthbanc:block/nitro_cart",
+                                          "y":  180
+                                      },
+                     "facing=west":  {
+                                         "model":  "minenorthbanc:block/nitro_cart",
+                                         "y":  270
+                                     }
+                 }
+}

@@ -26,6 +26,14 @@ public final class ModBanc {
     public static final RegistryObject<BlockEntityType<DynoBE>> DYNO_BE = BLOCK_ENTITIES.register("banc_puissance",
             () -> BlockEntityType.Builder.of(DynoBE::new, DYNO.get(), BENCH.get()).build(null));
 
+    // ---- nitro
+    /** Bouteille de nitro : +15 s de réserve (clic droit sur un véhicule équipé, ou rangée dans un chariot). */
+    public static final RegistryObject<Item> NITRO_BOTTLE = ITEMS.register("nitro_bottle", () -> new Item(new Item.Properties().stacksTo(16)));
+    public static final RegistryObject<Block> NITRO_CART = BLOCKS.register("nitro_cart", NitroCartBlock::new);
+    public static final RegistryObject<Item> NITRO_CART_ITEM = ITEMS.register("nitro_cart", () -> new BlockItem(NITRO_CART.get(), new Item.Properties()));
+    public static final RegistryObject<BlockEntityType<NitroCartBE>> NITRO_CART_BE = BLOCK_ENTITIES.register("nitro_cart",
+            () -> BlockEntityType.Builder.of(NitroCartBE::new, NITRO_CART.get()).build(null));
+
     public static void register(IEventBus bus) {
         BLOCKS.register(bus);
         ITEMS.register(bus);

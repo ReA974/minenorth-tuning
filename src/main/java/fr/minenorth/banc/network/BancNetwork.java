@@ -24,14 +24,25 @@ public final class BancNetwork {
     private BancNetwork() {}
 
     public static final int ACT_APPLY = 1, ACT_REFRESH = 2;
-    private static final String PROTOCOL = "2";
-    private static final int MAX_ROWS = 16, MAX_LINES = 12;
+    private static final String PROTOCOL = "3";
+    private static final int MAX_ROWS = 24, MAX_LINES = 12;
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MineNorthBanc.MOD_ID, "network"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 
     public static void register() {
         CHANNEL.registerMessage(0, State.class, State::encode, State::decode, State::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(1, Action.class, Action::encode, Action::decode, Action::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(2, NitroKey.class, NitroKey::encode, NitroKey::decode, NitroKey::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+    }
+
+    /** Client → serveur : la touche d'injection de nitro est enfoncée (true) ou relâchée (false). */
+    public record NitroKey(boolean down) {
+        static void encode(NitroKey m, FriendlyByteBuf b) { b.writeBoolean(m.down); }
+        static NitroKey decode(FriendlyByteBuf b) { return new NitroKey(b.readBoolean()); }
+        static void handle(NitroKey m, Supplier<NetworkEvent.Context> c) {
+            c.get().enqueueWork(() -> { ServerPlayer sp = c.get().getSender(); if (sp != null) fr.minenorth.banc.NitroService.setKey(sp, m.down); });
+            c.get().setPacketHandled(true);
+        }
     }
 
     public static void send(ServerPlayer p, State s) { CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), s); }

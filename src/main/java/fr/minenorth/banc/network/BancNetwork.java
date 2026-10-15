@@ -24,7 +24,7 @@ public final class BancNetwork {
     private BancNetwork() {}
 
     public static final int ACT_APPLY = 1, ACT_REFRESH = 2;
-    private static final String PROTOCOL = "4";
+    private static final String PROTOCOL = "5";
     private static final int MAX_ROWS = 24, MAX_LINES = 12;
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MineNorthBanc.MOD_ID, "network"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
@@ -34,6 +34,7 @@ public final class BancNetwork {
         CHANNEL.registerMessage(1, Action.class, Action::encode, Action::decode, Action::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(2, NitroKey.class, NitroKey::encode, NitroKey::decode, NitroKey::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(3, TuneSync.class, TuneSync::encode, TuneSync::decode, TuneSync::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(4, ObdReport.class, ObdReport::encode, ObdReport::decode, ObdReport::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     /**
@@ -71,6 +72,38 @@ public final class BancNetwork {
         static NitroKey decode(FriendlyByteBuf b) { return new NitroKey(b.readBoolean()); }
         static void handle(NitroKey m, Supplier<NetworkEvent.Context> c) {
             c.get().enqueueWork(() -> { ServerPlayer sp = c.get().getSender(); if (sp != null) fr.minenorth.banc.NitroService.setKey(sp, m.down); });
+            c.get().setPacketHandled(true);
+        }
+    }
+
+    /** Un moteur du rapport OBD2 : santé 0-100, dégâts 0-100, heures, température (°C), huile, régime. */
+    public record EngineInfo(String label, float health, float damage, float hours, float temp, float oil, float rpm, boolean running) {
+        static void encode(FriendlyByteBuf b, EngineInfo e) {
+            b.writeUtf(cut(e.label, 32), 32); b.writeFloat(e.health); b.writeFloat(e.damage); b.writeFloat(e.hours); b.writeFloat(e.temp);
+            b.writeFloat(e.oil); b.writeFloat(e.rpm); b.writeBoolean(e.running);
+        }
+        static EngineInfo decode(FriendlyByteBuf b) {
+            return new EngineInfo(b.readUtf(32), b.readFloat(), b.readFloat(), b.readFloat(), b.readFloat(), b.readFloat(), b.readFloat(), b.readBoolean());
+        }
+    }
+
+    /** Serveur → client : rapport de l'outil OBD2 (ouvre l'écran de diagnostic). */
+    public record ObdReport(String vehicle, List<EngineInfo> engines, String prep, int wheels, int flat) {
+        static void encode(ObdReport r, FriendlyByteBuf b) {
+            b.writeUtf(cut(r.vehicle, 64), 64);
+            b.writeVarInt(r.engines.size()); for (EngineInfo e : r.engines) EngineInfo.encode(b, e);
+            b.writeUtf(cut(r.prep, 96), 96); b.writeVarInt(r.wheels); b.writeVarInt(r.flat);
+        }
+        static ObdReport decode(FriendlyByteBuf b) {
+            String vehicle = b.readUtf(64);
+            int n = b.readVarInt();
+            if (n < 0 || n > 8) throw new io.netty.handler.codec.DecoderException("Trop de moteurs : " + n);
+            List<EngineInfo> engines = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) engines.add(EngineInfo.decode(b));
+            return new ObdReport(vehicle, engines, b.readUtf(96), b.readVarInt(), b.readVarInt());
+        }
+        static void handle(ObdReport r, Supplier<NetworkEvent.Context> c) {
+            c.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> fr.minenorth.banc.client.ObdScreen.show(r)));
             c.get().setPacketHandled(true);
         }
     }

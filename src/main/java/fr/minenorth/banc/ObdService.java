@@ -1,6 +1,7 @@
 package fr.minenorth.banc;
 
 import fr.minenorth.api.MtsTires;
+import fr.minenorth.banc.network.BancNetwork;
 import fr.minenorth.entreprises.api.EntrepriseApi;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -46,9 +47,6 @@ public final class ObdService {
         return 100 * (1 - 0.6 * dmg - 0.4 * wear);
     }
 
-    private static String grade(double h) {
-        return h >= 85 ? "§aExcellent" : h >= 60 ? "§2Bon" : h >= 35 ? "§eUsé" : h >= 15 ? "§6Mauvais" : "§cCritique";
-    }
 
     @SubscribeEvent
     public static void onInteract(PlayerInteractEvent.EntityInteract e) {
@@ -66,32 +64,21 @@ public final class ObdService {
     private static void report(ServerPlayer p, Entity v) {
         List<Object> engines = MtsTires.parts(v, "PartEngine");
         List<Object> wheels = MtsTires.wheels(v);
-        p.sendSystemMessage(Component.literal("§8§m          §r §9OBD2 §8| §f" + TuneAccess.name(v) + " §8§m          "));
-        if (engines.isEmpty()) {
-            p.sendSystemMessage(Component.literal("§cAucun moteur détecté."));
-        }
+        List<BancNetwork.EngineInfo> infos = new java.util.ArrayList<>();
         int n = 0;
         for (Object eng : engines) {
-            double h = health(eng);
             Object def = MtsTires.get(eng, "definition");
             double max = MtsTires.number(MtsTires.get(def, "general"), "health", 0);
-            String label = engines.size() > 1 ? "Moteur " + (++n) : "Moteur";
-            p.sendSystemMessage(Component.literal(String.format(Locale.ROOT, "§7%s : %s §f%.0f %%", label, grade(h), Math.max(0, h))));
-            p.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
-                    "§7  Dégâts §f%.0f %%§7, heures §f%.1f h§7, température §f%.0f °C§7, huile §f%.0f§7, régime §f%.0f tr/min §7(%s§7)",
-                    max > 0 ? 100 * Math.min(1, var(eng, "damageVar") / max) : 0, var(eng, "hoursVar"), MtsTires.number(eng, "temp", 0),
-                    MtsTires.number(eng, "pressure", 0), MtsTires.number(eng, "rpm", 0),
-                    Boolean.TRUE.equals(MtsTires.get(eng, "running")) ? "§amoteur allumé" : "§7éteint")));
-            if (h < 35) p.sendSystemMessage(Component.literal("§c  ⚠ Moteur à réviser : utilisez un kit de réparation moteur."));
-            if (MtsTires.number(eng, "temp", 0) > 100) p.sendSystemMessage(Component.literal("§c  ⚠ Surchauffe."));
+            infos.add(new BancNetwork.EngineInfo(engines.size() > 1 ? "Moteur " + (++n) : "Moteur", (float) health(eng),
+                    (float) (max > 0 ? 100 * Math.min(1, var(eng, "damageVar") / max) : 0), (float) var(eng, "hoursVar"),
+                    (float) MtsTires.number(eng, "temp", 0), (float) MtsTires.number(eng, "pressure", 0), (float) MtsTires.number(eng, "rpm", 0),
+                    Boolean.TRUE.equals(MtsTires.get(eng, "running"))));
         }
         TuneAccess.Setup s = TuneAccess.Setup.read(v);
-        if (!s.stock()) p.sendSystemMessage(Component.literal("§7Préparation : §f" + (s.stage() > 0 ? "Stage " + s.stage() : "origine") + (s.nitro() > 0 ? "§7, nitro " + s.nitro() : "")));
-        if (!wheels.isEmpty()) {
-            int flat = 0;
-            for (Object w : wheels) if (MtsTires.isFlat(w)) flat++;
-            p.sendSystemMessage(Component.literal(flat == 0 ? "§7Pneus : §aen bon état (" + wheels.size() + ")" : "§7Pneus : §c" + flat + " crevé(s) §7sur " + wheels.size()));
-        }
+        String prep = s.stock() ? "Préparation : d'origine" : "Préparation : " + (s.stage() > 0 ? "Stage " + s.stage() : "origine") + (s.nitro() > 0 ? ", nitro " + s.nitro() : "");
+        int flat = 0;
+        for (Object w : wheels) if (MtsTires.isFlat(w)) flat++;
+        BancNetwork.CHANNEL.send(net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> p), new BancNetwork.ObdReport(TuneAccess.name(v), infos, prep, wheels.size(), flat));
         ((ServerLevel) p.level()).playSound(null, v.blockPosition(), SoundEvents.NOTE_BLOCK_BIT.value(), SoundSource.PLAYERS, 0.8f, 1.6f);
     }
 

@@ -44,5 +44,6 @@ public final class ModBanc {
         BLOCKS.register(bus);
         ITEMS.register(bus);
         BLOCK_ENTITIES.register(bus);
+        SOUNDS.register(bus);
     }
 }

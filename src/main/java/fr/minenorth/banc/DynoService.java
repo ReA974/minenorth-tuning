@@ -89,7 +89,7 @@ public final class DynoService {
                         + (cur0.nitro() > 0 ? " (réserve " + NitroService.reserve(v) + ")" : ""));
                 for (int i = 0; i <= TuneAccess.MAX_STAGE; i++) {
                     String detail = i == 0 ? "Remise aux réglages d'usine"
-                            : "Accélération +" + Math.round(TuneAccess.STAGE_ACCEL[i] * 1440) + " km/h par seconde plein gaz, usure du moteur " + pct(TuneAccess.WEAR[i]);
+                            : "Usure moteur " + pct(TuneAccess.WEAR[i]) + ", accél. +" + Math.round(TuneAccess.STAGE_ACCEL[i] * 1440) + " km/h/s";
                     rows.add(new Row(0, STAGE_NAMES[i], detail, i == cur0.stage()));
                 }
                 for (int i = 0; i < AXLE_NAMES.length; i++)

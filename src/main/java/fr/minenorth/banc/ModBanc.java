@@ -40,6 +40,12 @@ public final class ModBanc {
     public static final RegistryObject<BlockEntityType<NitroCartBE>> NITRO_CART_BE = BLOCK_ENTITIES.register("nitro_cart",
             () -> BlockEntityType.Builder.of(NitroCartBE::new, NITRO_CART.get()).build(null));
 
+    // ---- diagnostic moteur
+    /** Outil OBD2 : clic droit sur un véhicule = rapport sur le moteur et les pneus. */
+    public static final RegistryObject<Item> OBD_TOOL = ITEMS.register("obd2", () -> new Item(new Item.Properties().stacksTo(1)));
+    /** Kit de réparation moteur : consommé pour remettre le moteur d'un véhicule à neuf (personnel d'entreprise). */
+    public static final RegistryObject<Item> ENGINE_KIT = ITEMS.register("engine_kit", () -> new Item(new Item.Properties().stacksTo(16)));
+
     public static void register(IEventBus bus) {
         BLOCKS.register(bus);
         ITEMS.register(bus);

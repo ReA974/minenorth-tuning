@@ -41,6 +41,9 @@ public final class NitroService {
     private static final double REAR = 1.3, SIDE = 0.45, HEIGHT = 0.3;
     /** Véhicule -> joueur qui maintient la touche. */
     private static final Map<Entity, UUID> ACTIVE = new ConcurrentHashMap<>();
+    /** Ticks depuis le dernier départ du son de nitro (il dure 11,8 s : on le relance si l'injection continue). */
+    private static final Map<Entity, Integer> SOUND_AGE = new ConcurrentHashMap<>();
+    private static final int SOUND_TICKS = 230;
 
     /** Côté client : véhicules (par identifiant) dont le serveur dit que la nitro est en cours (voir ClientTune). */
     private static final java.util.Set<Integer> CLIENT_ACTIVE = ConcurrentHashMap.newKeySet();
@@ -86,9 +89,8 @@ public final class NitroService {
         if (ACTIVE.putIfAbsent(v, p.getUUID()) == null) {
             retune(v);
             ServerLevel l = p.serverLevel();
-            l.playSound(null, v.blockPosition(), ModBanc.NITRO_SOUND.get(), SoundSource.NEUTRAL, 1.5f, 1.0f);   // son perso (fichier a fournir)
-            l.playSound(null, v.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.NEUTRAL, 1.0f, 0.7f + 0.15f * s.nitro());
-            l.playSound(null, v.blockPosition(), SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.NEUTRAL, 0.9f, 0.9f);
+            l.playSound(null, v.blockPosition(), ModBanc.NITRO_SOUND.get(), SoundSource.NEUTRAL, 1.5f, 1.0f);   // nitro.ogg (11,8 s)
+            SOUND_AGE.put(v, 0);
         }
     }
 
@@ -99,6 +101,7 @@ public final class NitroService {
     }
 
     private static void deactivate(Entity v) {
+        SOUND_AGE.remove(v);
         if (ACTIVE.remove(v) != null) retune(v);
     }
 
@@ -118,6 +121,7 @@ public final class NitroService {
             ServerPlayer p = e.getServer().getPlayerList().getPlayer(en.getValue());
             if (v.isRemoved() || p == null || p.getVehicle() == null) {
                 it.remove();
+                SOUND_AGE.remove(v);
                 if (!v.isRemoved()) retune(v);
                 continue;
             }
@@ -125,12 +129,18 @@ public final class NitroService {
             v.getPersistentData().putInt(TuneAccess.CHARGE_KEY, Math.max(0, left));
             if (left <= 0) {
                 it.remove();
+                SOUND_AGE.remove(v);
                 retune(v);
                 p.displayClientMessage(Component.literal("§cNitro épuisée."), true);
                 ((ServerLevel) v.level()).playSound(null, v.blockPosition(), SoundEvents.FIRE_EXTINGUISH, SoundSource.NEUTRAL, 0.8f, 1.1f);
                 continue;
             }
             if (left % 20 == 0) p.displayClientMessage(Component.literal("§bNitro : §f" + (left / 20) + " s"), true);
+            int age = SOUND_AGE.merge(v, 1, Integer::sum);
+            if (age >= SOUND_TICKS) {
+                SOUND_AGE.put(v, 0);
+                ((ServerLevel) v.level()).playSound(null, v.blockPosition(), ModBanc.NITRO_SOUND.get(), SoundSource.NEUTRAL, 1.5f, 1.0f);
+            }
             flames((ServerLevel) v.level(), v, TuneAccess.Setup.read(v).nitro());
         }
     }
@@ -165,8 +175,6 @@ public final class NitroService {
             if (t % 3 == 0) l.sendParticles(ParticleTypes.FIREWORK, x, by, z, 1, 0.05, 0.05, 0.05, 0.12);   // étincelles façon feu d'artifice
             if (t % 5 == 0) l.sendParticles(ParticleTypes.SMOKE, x - hx * 0.5, by + 0.1, z - hz * 0.5, 1, 0.05, 0.05, 0.05, 0.01);
         }
-        if (t % 8 == 0) l.playSound(null, new net.minecraft.core.BlockPos((int) Math.floor(bx), (int) Math.floor(by), (int) Math.floor(bz)),
-                SoundEvents.FIREWORK_ROCKET_BLAST, SoundSource.NEUTRAL, 0.6f, 1.2f + 0.1f * level);
     }
 
     // ------------------------------------------------------------------ recharge à la bouteille

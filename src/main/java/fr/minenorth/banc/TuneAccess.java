@@ -55,7 +55,8 @@ public final class TuneAccess {
 
         public static Setup read(Entity e) {
             var t = e.getPersistentData();
-            return new Setup(clamp(t.getInt(TUNE), MAX_STAGE), clamp(t.getInt(BOOST_KEY), 2), clamp(t.getInt(AXLE_KEY), 2),
+            // Turbo / compresseur supprimés (15/10) : la suralimentation mémorisée sur d'anciens véhicules est ignorée.
+            return new Setup(clamp(t.getInt(TUNE), MAX_STAGE), 0, clamp(t.getInt(AXLE_KEY), 2),
                     clamp(t.getInt(TIRES_KEY), 2), clamp(t.getInt(BRAKES_KEY), 2), clamp(t.getInt(NITRO_KEY), 3));
         }
 
@@ -134,6 +135,37 @@ public final class TuneAccess {
             double len = Math.sqrt(x * x + z * z);
             if (Double.isNaN(len) || len < 1e-6) return null;
             return new double[]{x / len, z / len};
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * Géométrie arrière, lue dans les boîtes de collision de la définition du véhicule (repère du modèle : +z vers l'avant, l'origine près de l'essieu
+     * arrière) : {distance de l'arrière derrière l'origine, demi-largeur, bas des boîtes}. Null si illisible. Sert à placer les flammes d'échappement.
+     */
+    public static double[] rearGeometry(Entity e) {
+        try {
+            Object veh = inner(e);
+            if (veh == null || !(field(original(veh), "collisionGroups") instanceof Iterable<?> groups)) return null;
+            double minZ = Double.MAX_VALUE, maxX = 0, minY = Double.MAX_VALUE;
+            boolean any = false;
+            for (Object g : groups) {
+                if (field(g, "isInterior") instanceof Boolean b && b) continue;
+                if (field(g, "isForBullets") instanceof Boolean b && b) continue;
+                if (!(field(g, "collisions") instanceof Iterable<?> boxes)) continue;
+                for (Object box : boxes) {
+                    Object pos = field(box, "pos");
+                    double w = number(box, "width", 0), h = number(box, "height", 0);
+                    double x = number(pos, "x", Double.NaN), y = number(pos, "y", Double.NaN), z = number(pos, "z", Double.NaN);
+                    if (Double.isNaN(x) || Double.isNaN(y) || Double.isNaN(z)) continue;
+                    minZ = Math.min(minZ, z - w / 2);
+                    maxX = Math.max(maxX, Math.abs(x) + w / 2);
+                    minY = Math.min(minY, y - h / 2);
+                    any = true;
+                }
+            }
+            return any ? new double[]{Math.max(0.2, -minZ), maxX, Math.max(-0.2, minY)} : null;
         } catch (Throwable t) {
             return null;
         }

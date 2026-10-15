@@ -24,6 +24,13 @@ public final class TuneService {
 
     static void track(Entity e) { if (!TuneAccess.Setup.read(e).stock()) TUNED.add(e); else TUNED.remove(e); }
 
+    /** Un joueur voit apparaître un véhicule réglé : il reçoit son réglage (voir BancNetwork.TuneSync). */
+    @SubscribeEvent
+    public static void onStartTracking(net.minecraftforge.event.entity.player.PlayerEvent.StartTracking e) {
+        if (e.getEntity() instanceof net.minecraft.server.level.ServerPlayer p && TuneAccess.isVehicle(e.getTarget()) && !TuneAccess.Setup.read(e.getTarget()).stock())
+            fr.minenorth.banc.network.BancNetwork.syncTo(p, e.getTarget());
+    }
+
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent e) {
         if (e.getLevel().isClientSide() || !TuneAccess.isVehicle(e.getEntity())) return;

@@ -23,7 +23,9 @@ public class DynoScreen extends Screen {
     private int left, top, h, rowsTop, tabsTop;
     private int selected = -1, group;
     private Btn apply;
-    private static final String[] TABS = {"Moteur", "Suralim.", "Pont", "Pneus", "Freins", "Nitro"};
+    private static final String[] TABS = {"Moteur", "Pont", "Pneus", "Freins", "Nitro"};
+    /** Groupe de réglages de chaque onglet (le groupe 1, suralimentation, a été supprimé). */
+    private static final int[] GROUPS = {0, 2, 3, 4, 5};
     private static final int TAB_H = 20;
 
     private DynoScreen(BancNetwork.State state) {
@@ -76,7 +78,7 @@ public class DynoScreen extends Screen {
     public boolean mouseClicked(double mx, double my, int button) {
         if (button == 0 && my >= tabsTop && my < tabsTop + TAB_H && mx >= left + 10 && mx < left + 10 + tabW() * TABS.length) {
             int t = (int) ((mx - left - 10) / tabW());
-            if (t != group) { group = t; selected = -1; }
+            if (GROUPS[t] != group) { group = GROUPS[t]; selected = -1; }
             return true;
         }
         if (button == 0 && mx >= left + 10 && mx < left + W - 10 && my >= rowsTop && my < rowsTop + 4 * ROW_H) {
@@ -110,7 +112,7 @@ public class DynoScreen extends Screen {
 
         for (int t = 0; t < TABS.length; t++) {
             int tx = left + 10 + t * tabW();
-            boolean on = t == group, hov = mx >= tx && mx < tx + tabW() && my >= tabsTop && my < tabsTop + TAB_H;
+            boolean on = GROUPS[t] == group, hov = mx >= tx && mx < tx + tabW() && my >= tabsTop && my < tabsTop + TAB_H;
             g.fill(tx + 1, tabsTop, tx + tabW() - 1, tabsTop + TAB_H, on ? CYAN : hov ? HOVER : LIST);
             g.drawString(font, TABS[t], tx + tabW() / 2 - font.width(TABS[t]) / 2, tabsTop + 6, on ? WHITE : MUTED, false);
         }

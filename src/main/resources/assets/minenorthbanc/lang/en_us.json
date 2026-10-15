@@ -6,5 +6,6 @@
     "block.minenorthbanc.nitro_cart":  "Chariot de nitro",
     "item.minenorthbanc.nitro_bottle":  "Bouteille de nitro",
     "key.minenorthbanc.nitro":  "Injection de nitro (maintenir)",
-    "key.categories.minenorth":  "MineNorth"
+    "key.categories.minenorth":  "MineNorth",
+    "subtitles.minenorthbanc.nitro":  "Injection de nitro"
 }

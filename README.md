@@ -32,7 +32,6 @@ Indépendantes des stages et cumulables ; rangées sur le véhicule comme le sta
 
 | Onglet | Choix | Effet |
 |---|---|---|
-| Suralim. | Compresseur / Turbo | +35 % / +65 % de la puissance d'usine, usure +15 % / +50 %, consommation en hausse (refusé si le moteur est déjà suralimenté d'usine) |
 | Pont | Court / Long | Accélération +15 % / -12 %, vitesse de pointe -13 % / +14 % (rapport de pont du véhicule) |
 | Pneus | Sport / Course | Adhérence de traction de TOUTES les roues +10 % / +20 %, tenue latérale +15 % / +30 % |
 | Freins | Sport / Course | Freinage +60 % / +130 % |
@@ -52,3 +51,8 @@ Java 17. Builder d'abord `minenorth-api` puis `minenorth-entreprises` (jars lus 
 - **Injection** : maintenir la touche **Maj gauche** (réassignable : Contrôles > MineNorth > « Injection de nitro ») au volant d'un véhicule équipé. Elle consomme la réserve (1 s de réserve = 1 s d'injection) ; le message d'action affiche le temps restant.
 - **Réserve** : 15 s par **bouteille de nitro** (craft : poudre de blaze + 5 lingots de fer + redstone = 2 bouteilles), 90 s au maximum par véhicule. Recharge : clic droit sur le véhicule avec une bouteille, ou **chariot de nitro** (craft : coffre + 3 lingots de fer... + 2 wagonnets) : clic droit = inventaire de 9 bouteilles, **clic droit accroupi** = recharge le véhicule le plus proche (6 blocs) avec les bouteilles du chariot.
 - Les sons (wastegate, compresseur) viendront plus tard.
+## Mise à jour du 15/10 (soir)
+- **Turbo et compresseur supprimés** (onglet Suralim. retiré ; l'ancien réglage mémorisé sur un véhicule est ignoré).
+- **Réglage synchronisé avec les clients** : MTS simule aussi la voiture chez le joueur, avec les valeurs d'usine ; le serveur appliquait les valeurs réglées, d'où une voiture qui saccade ou se téléporte. Le serveur envoie maintenant le réglage (et l'état de la nitro) aux joueurs qui voient le véhicule, qui l'appliquent à leur copie. Le serveur ET les clients doivent avoir le même jar (protocole 4).
+- **Flammes de nitro** : placées d'après les boîtes de collision du véhicule (arrière réel et largeur), plus de position fixe.
+- **Son de la nitro** : l'événement `minenorthbanc:nitro_boost` est prêt ; déposer un fichier **OGG mono** dans `src/main/resources/assets/minenorthbanc/sounds/nitro.ogg` (puis recompiler). Tant qu'il manque, seuls les sons de secours (lancement + détonations) jouent.

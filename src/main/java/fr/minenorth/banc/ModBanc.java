@@ -1,5 +1,7 @@
 package fr.minenorth.banc;
 
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -27,6 +29,10 @@ public final class ModBanc {
             () -> BlockEntityType.Builder.of(DynoBE::new, DYNO.get(), BENCH.get()).build(null));
 
     // ---- nitro
+    public static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, MineNorthBanc.MOD_ID);
+    /** Son d'injection de nitro : fichier assets/minenorthbanc/sounds/nitro.ogg (OGG mono) à fournir ; tant qu'il manque, seuls les sons de secours jouent. */
+    public static final RegistryObject<SoundEvent> NITRO_SOUND = SOUNDS.register("nitro_boost",
+            () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MineNorthBanc.MOD_ID, "nitro_boost")));
     /** Bouteille de nitro : +15 s de réserve (clic droit sur un véhicule équipé, ou rangée dans un chariot). */
     public static final RegistryObject<Item> NITRO_BOTTLE = ITEMS.register("nitro_bottle", () -> new Item(new Item.Properties().stacksTo(16)));
     public static final RegistryObject<Block> NITRO_CART = BLOCKS.register("nitro_cart", NitroCartBlock::new);

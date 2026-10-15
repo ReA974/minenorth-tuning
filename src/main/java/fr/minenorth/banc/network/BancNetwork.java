@@ -24,7 +24,7 @@ public final class BancNetwork {
     private BancNetwork() {}
 
     public static final int ACT_APPLY = 1, ACT_REFRESH = 2;
-    private static final String PROTOCOL = "3";
+    private static final String PROTOCOL = "4";
     private static final int MAX_ROWS = 24, MAX_LINES = 12;
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MineNorthBanc.MOD_ID, "network"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
@@ -33,7 +33,37 @@ public final class BancNetwork {
         CHANNEL.registerMessage(0, State.class, State::encode, State::decode, State::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(1, Action.class, Action::encode, Action::decode, Action::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(2, NitroKey.class, NitroKey::encode, NitroKey::decode, NitroKey::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(3, TuneSync.class, TuneSync::encode, TuneSync::decode, TuneSync::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
+
+    /**
+     * Serveur → clients : réglage d'un véhicule. MTS simule aussi la voiture côté client : sans ça le client roule avec les valeurs d'usine pendant que le
+     * serveur applique les valeurs réglées, et la voiture saccade / se téléporte. Le client applique le même réglage à sa copie de l'entité.
+     */
+    public record TuneSync(int entityId, int stage, int axle, int tires, int brakes, int nitro, boolean nitroOn) {
+        static void encode(TuneSync m, FriendlyByteBuf b) {
+            b.writeVarInt(m.entityId); b.writeVarInt(m.stage); b.writeVarInt(m.axle); b.writeVarInt(m.tires); b.writeVarInt(m.brakes); b.writeVarInt(m.nitro);
+            b.writeBoolean(m.nitroOn);
+        }
+        static TuneSync decode(FriendlyByteBuf b) {
+            return new TuneSync(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readBoolean());
+        }
+        static void handle(TuneSync m, Supplier<NetworkEvent.Context> c) {
+            c.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> fr.minenorth.banc.client.ClientTune.receive(m)));
+            c.get().setPacketHandled(true);
+        }
+    }
+
+    private static TuneSync syncOf(net.minecraft.world.entity.Entity v) {
+        fr.minenorth.banc.TuneAccess.Setup s = fr.minenorth.banc.TuneAccess.Setup.read(v);
+        return new TuneSync(v.getId(), s.stage(), s.axle(), s.tires(), s.brakes(), s.nitro(), fr.minenorth.banc.NitroService.isActive(v));
+    }
+
+    /** Envoie le réglage du véhicule à tous les joueurs qui le voient. */
+    public static void sync(net.minecraft.world.entity.Entity v) { CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> v), syncOf(v)); }
+
+    /** Envoie le réglage du véhicule à un joueur (il vient de le voir apparaître). */
+    public static void syncTo(ServerPlayer p, net.minecraft.world.entity.Entity v) { CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), syncOf(v)); }
 
     /** Client → serveur : la touche d'injection de nitro est enfoncée (true) ou relâchée (false). */
     public record NitroKey(boolean down) {

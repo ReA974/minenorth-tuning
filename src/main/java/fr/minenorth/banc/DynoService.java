@@ -85,16 +85,13 @@ public final class DynoService {
                 lines.add(String.format(Locale.ROOT, "Indice de puissance : %.0f  (origine %.0f, %s)", idx, base, pct(base == 0 ? 1 : idx / base)));
                 lines.add(String.format(Locale.ROOT, "Régime maximal : %.0f tr/min  (origine %.0f)", cur.maxRpm(), f.maxRpm()));
                 lines.add("Boîte : " + (f.gears() > 0 ? f.gears() + " rapports" : "automatique / inconnue"));
-                lines.add("Options : " + BOOST_NAMES[cur0.boost()] + ", " + AXLE_NAMES[cur0.axle()] + ", " + TIRE_NAMES[cur0.tires()] + ", " + BRAKE_NAMES[cur0.brakes()] + ", " + NITRO_NAMES[cur0.nitro()]
+                lines.add("Options : " + AXLE_NAMES[cur0.axle()] + ", " + TIRE_NAMES[cur0.tires()] + ", " + BRAKE_NAMES[cur0.brakes()] + ", " + NITRO_NAMES[cur0.nitro()]
                         + (cur0.nitro() > 0 ? " (réserve " + NitroService.reserve(v) + ")" : ""));
                 for (int i = 0; i <= TuneAccess.MAX_STAGE; i++) {
                     String detail = i == 0 ? "Remise aux réglages d'usine"
                             : "Puissance " + pct(TuneAccess.POWER[i]) + ", régime " + pct(TuneAccess.RPM[i]) + ", adhérence " + pct(TuneAccess.GRIP[i]) + ", usure " + pct(TuneAccess.WEAR[i]);
                     rows.add(new Row(0, STAGE_NAMES[i], detail, i == cur0.stage()));
                 }
-                for (int i = 0; i < BOOST_NAMES.length; i++)
-                    rows.add(new Row(1, BOOST_NAMES[i], i == 0 ? "Retire la suralimentation"
-                            : "Puissance " + pct(1 + TuneAccess.BOOST_POWER[i]) + ", usure " + pct(TuneAccess.BOOST_WEAR[i]) + ", consomme plus", i == cur0.boost()));
                 for (int i = 0; i < AXLE_NAMES.length; i++)
                     rows.add(new Row(2, AXLE_NAMES[i], i == 0 ? "Rapport d'usine"
                             : "Accélération " + pct(TuneAccess.AXLE[i]) + ", vitesse de pointe " + pct(1 / TuneAccess.AXLE[i]), i == cur0.axle()));
@@ -123,7 +120,7 @@ public final class DynoService {
         if (v == null) { send(p, be, "Aucun véhicule à proximité du banc.", false); return; }
         TuneAccess.Setup old = TuneAccess.Setup.read(v);
         int max = a.group() == TuneAccess.Setup.STAGE || a.group() == TuneAccess.Setup.NITRO_G ? TuneAccess.MAX_STAGE : 2;
-        if (a.group() < 0 || a.group() > TuneAccess.Setup.NITRO_G || a.index() < 0 || a.index() > max) return;
+        if (a.group() < 0 || a.group() == TuneAccess.Setup.BOOST || a.group() > TuneAccess.Setup.NITRO_G || a.index() < 0 || a.index() > max) return;
         TuneAccess.Setup next = old.with(a.group(), a.index());
         if (next.equals(old)) { send(p, be, "Le véhicule est déjà réglé ainsi.", false); return; }
         if (!TuneAccess.applyTune(v, next)) {
@@ -137,6 +134,7 @@ public final class DynoService {
                 TuneAccess.name(v), old, next, now == null ? "?" : now.power(), fa == null ? "?" : fa.power(),
                 fa == null ? "?" : fa.maxRpm(), now == null ? "?" : now.maxRpm());
         TuneService.track(v);
+        BancNetwork.sync(v);
         String what = switch (a.group()) {
             case 0 -> a.index() == 0 ? "Réglages d'usine rétablis." : "Moteur reprogrammé : " + STAGE_NAMES[a.index()] + ".";
             case 1 -> a.index() == 0 ? "Suralimentation retirée." : BOOST_NAMES[a.index()] + " installé.";

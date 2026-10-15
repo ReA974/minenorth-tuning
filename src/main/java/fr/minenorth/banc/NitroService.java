@@ -37,11 +37,17 @@ public final class NitroService {
 
     /** Une bouteille = 15 s d'injection ; la réserve d'un véhicule est limitée à 90 s. */
     public static final int BOTTLE_TICKS = 300, MAX_TICKS = 1800;
-    private static final double REAR = 2.4, SIDE = 0.55, HEIGHT = 0.35;
+    /** Repli si la géométrie du véhicule est illisible : distance derrière l'origine, écart latéral, hauteur. */
+    private static final double REAR = 1.3, SIDE = 0.45, HEIGHT = 0.3;
     /** Véhicule -> joueur qui maintient la touche. */
     private static final Map<Entity, UUID> ACTIVE = new ConcurrentHashMap<>();
 
-    public static boolean isActive(Entity e) { return ACTIVE.containsKey(e); }
+    /** Côté client : véhicules (par identifiant) dont le serveur dit que la nitro est en cours (voir ClientTune). */
+    private static final java.util.Set<Integer> CLIENT_ACTIVE = ConcurrentHashMap.newKeySet();
+
+    public static void setClientActive(int entityId, boolean on) { if (on) CLIENT_ACTIVE.add(entityId); else CLIENT_ACTIVE.remove(entityId); }
+
+    public static boolean isActive(Entity e) { return e.level().isClientSide ? CLIENT_ACTIVE.contains(e.getId()) : ACTIVE.containsKey(e); }
 
     public static int charge(Entity e) { return Math.max(0, e.getPersistentData().getInt(TuneAccess.CHARGE_KEY)); }
 
@@ -78,15 +84,22 @@ public final class NitroService {
             return;
         }
         if (ACTIVE.putIfAbsent(v, p.getUUID()) == null) {
-            TuneAccess.applyTune(v, s);
+            retune(v);
             ServerLevel l = p.serverLevel();
+            l.playSound(null, v.blockPosition(), ModBanc.NITRO_SOUND.get(), SoundSource.NEUTRAL, 1.5f, 1.0f);   // son perso (fichier a fournir)
             l.playSound(null, v.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.NEUTRAL, 1.0f, 0.7f + 0.15f * s.nitro());
             l.playSound(null, v.blockPosition(), SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.NEUTRAL, 0.9f, 0.9f);
         }
     }
 
+    /** Réapplique le réglage (nitro active ou non) et le fait suivre aux clients : MTS simule aussi la voiture chez eux. */
+    private static void retune(Entity v) {
+        TuneAccess.applyTune(v, TuneAccess.Setup.read(v));
+        fr.minenorth.banc.network.BancNetwork.sync(v);
+    }
+
     private static void deactivate(Entity v) {
-        if (ACTIVE.remove(v) != null) TuneAccess.applyTune(v, TuneAccess.Setup.read(v));
+        if (ACTIVE.remove(v) != null) retune(v);
     }
 
     @SubscribeEvent
@@ -105,14 +118,14 @@ public final class NitroService {
             ServerPlayer p = e.getServer().getPlayerList().getPlayer(en.getValue());
             if (v.isRemoved() || p == null || p.getVehicle() == null) {
                 it.remove();
-                if (!v.isRemoved()) TuneAccess.applyTune(v, TuneAccess.Setup.read(v));
+                if (!v.isRemoved()) retune(v);
                 continue;
             }
             int left = charge(v) - 1;
             v.getPersistentData().putInt(TuneAccess.CHARGE_KEY, Math.max(0, left));
             if (left <= 0) {
                 it.remove();
-                TuneAccess.applyTune(v, TuneAccess.Setup.read(v));
+                retune(v);
                 p.displayClientMessage(Component.literal("§cNitro épuisée."), true);
                 ((ServerLevel) v.level()).playSound(null, v.blockPosition(), SoundEvents.FIRE_EXTINGUISH, SoundSource.NEUTRAL, 0.8f, 1.1f);
                 continue;
@@ -127,7 +140,9 @@ public final class NitroService {
         double hx, hz;
         if (h != null) { hx = h[0]; hz = h[1]; }
         else { double yaw = Math.toRadians(v.getYRot()); hx = -Math.sin(yaw); hz = Math.cos(yaw); }
-        double bx = v.getX() - hx * REAR, by = v.getY() + HEIGHT, bz = v.getZ() - hz * REAR;
+        double[] g = TuneAccess.rearGeometry(v);   // {arrière, demi-largeur, bas} d'après les boîtes de collision
+        double rear = g != null ? g[0] + 0.05 : REAR, side = g != null ? Math.min(0.55, g[1] * 0.4) : SIDE, height = (g != null ? g[2] : 0) + HEIGHT;
+        double bx = v.getX() - hx * rear, by = v.getY() + height, bz = v.getZ() - hz * rear;
         double px = -hz, pz = hx;   // perpendiculaire : deux échappements
         // couleur de la flamme selon le niveau : I orange, II bleu, III violet
         ParticleOptions core = switch (level) {
@@ -141,8 +156,8 @@ public final class NitroService {
             default -> new Vector3f(1.0f, 0.55f, 0.12f);
         };
         long t = l.getGameTime();
-        for (int side = -1; side <= 1; side += 2) {
-            double x = bx + px * SIDE * side, z = bz + pz * SIDE * side;
+        for (int s2 = -1; s2 <= 1; s2 += 2) {
+            double x = bx + px * side * s2, z = bz + pz * side * s2;
             // flamme courte vers l'arrière (count 0 : les « offsets » sont la direction, x vitesse)
             l.sendParticles(core, x, by, z, 0, -hx, 0.03, -hz, 0.22);
             l.sendParticles(core, x, by, z, 0, -hx, 0.0, -hz, 0.32);

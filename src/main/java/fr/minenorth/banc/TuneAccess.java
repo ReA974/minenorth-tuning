@@ -137,7 +137,16 @@ public final class TuneAccess {
     private static Object inner(Entity e) { return field(e, "entity"); }
 
     /** Poussée directe de la nitro : ajoute {@code accel} à la vitesse du véhicule, vers l'avant (plafonnée à ~216 km/h). */
-    public static void push(Entity e, double accel) { push(e, accel, 3.0); }
+    public static void push(Entity e, double accel) { if (inForwardGear(e)) push(e, accel, 3.0); }
+
+    /** Vrai si le premier moteur est en marche avant (rapport > 0) : au point mort (0) ou en marche arrière (< 0) on ne pousse jamais. Inconnu = vrai. */
+    public static boolean inForwardGear(Entity e) {
+        for (Object eng : engines(e)) {
+            double gear = valueOf(field(eng, "currentGearVar"));
+            return Double.isNaN(gear) || gear > 0;
+        }
+        return true;
+    }
 
     /**
      * Poussée des stages : seulement si le moteur tourne, que le conducteur accélère (accélérateur > 0), sans frein ni frein à main, et pas en marche arrière.
@@ -155,7 +164,7 @@ public final class TuneAccess {
             for (Object eng : engines(e)) {
                 if (field(eng, "running") instanceof Boolean r && !r) return;
                 double gear = valueOf(field(eng, "currentGearVar"));
-                if (!Double.isNaN(gear) && gear < 0) return;
+                if (!Double.isNaN(gear) && gear <= 0) return;
                 break;
             }
             push(e, STAGE_ACCEL[s.stage()] * Math.min(1.0, throttle), STAGE_CAP);

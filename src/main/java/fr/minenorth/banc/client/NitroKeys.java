@@ -38,10 +38,19 @@ public final class NitroKeys {
         public static void onTick(TickEvent.ClientTickEvent e) {
             if (e.phase != TickEvent.Phase.END) return;
             Minecraft mc = Minecraft.getInstance();
-            boolean down = mc.player != null && mc.player.getVehicle() != null && mc.screen == null && NITRO.isDown();
+            // Pas de connexion (déconnexion, changement de monde, véhicule qui disparaît puis kick) : rien à envoyer, et surtout pas de plantage.
+            if (mc.player == null || mc.getConnection() == null) {
+                sent = false;
+                return;
+            }
+            boolean down = mc.player.getVehicle() != null && mc.screen == null && NITRO.isDown();
             if (down != sent) {
                 sent = down;
-                BancNetwork.CHANNEL.sendToServer(new BancNetwork.NitroKey(down));
+                try {
+                    BancNetwork.CHANNEL.sendToServer(new BancNetwork.NitroKey(down));
+                } catch (RuntimeException ex) {
+                    sent = false;
+                }
             }
         }
     }

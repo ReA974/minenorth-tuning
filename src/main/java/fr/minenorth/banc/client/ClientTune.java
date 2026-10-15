@@ -52,9 +52,10 @@ public final class ClientTune {
         if (mc.level == null) { STATE.clear(); MISSING.clear(); return; }
         // poussée directe de la nitro, à chaque tick (même calcul que le serveur : la voiture est aussi simulée chez le joueur)
         for (BancNetwork.TuneSync s : STATE.values()) {
-            if (!s.nitroOn()) continue;
             Entity v = mc.level.getEntity(s.entityId());
-            if (v != null && !v.isRemoved()) TuneAccess.push(v, TuneAccess.NITRO_ACCEL[Math.max(0, Math.min(3, s.nitro()))]);
+            if (v == null || v.isRemoved()) continue;
+            if (s.stage() > 0) TuneAccess.drivePush(v, new TuneAccess.Setup(s.stage(), 0, s.axle(), s.tires(), s.brakes(), s.nitro()));
+            if (s.nitroOn()) TuneAccess.push(v, TuneAccess.NITRO_ACCEL[Math.max(0, Math.min(3, s.nitro()))]);
         }
         if (++counter < 20) return;
         counter = 0;

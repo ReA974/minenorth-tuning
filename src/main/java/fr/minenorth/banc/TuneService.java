@@ -39,7 +39,14 @@ public final class TuneService {
 
     @SubscribeEvent
     public static void onTick(TickEvent.ServerTickEvent e) {
-        if (e.phase != TickEvent.Phase.END || TUNED.isEmpty() || ++counter < INTERVAL) return;
+        if (e.phase != TickEvent.Phase.END || TUNED.isEmpty()) return;
+        // Stage : poussée directe pendant que le conducteur accélère (la hausse de puissance seule fait patiner les roues : MTS plafonne la force par l'adhérence)
+        for (Entity v : TUNED) {
+            if (v.isRemoved()) continue;
+            TuneAccess.Setup setup = TuneAccess.Setup.read(v);
+            if (setup.stage() > 0) TuneAccess.drivePush(v, setup);
+        }
+        if (++counter < INTERVAL) return;
         counter = 0;
         for (Iterator<Entity> it = TUNED.iterator(); it.hasNext(); ) {
             Entity v = it.next();

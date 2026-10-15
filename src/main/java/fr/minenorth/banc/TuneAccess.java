@@ -25,7 +25,14 @@ public final class TuneAccess {
     public static final String TUNE = "mnrp_tune";
 
     /** Niveaux : puissance (la « consommation » MTS est la force motrice), régime maximal, usure du moteur. */
-    public static final double[] POWER = {1.00, 1.50, 2.20, 3.20};
+    /**
+     * Puissance de moteur inchangée (15/10) : plus de puissance que d'adhérence fait PATINER les roues dans MTS (la force est plafonnée par
+     * masse x adhérence), et la voiture devient plus lente. L'effet du stage est une poussée directe (STAGE_ACCEL) tant que le conducteur accélère.
+     */
+    public static final double[] POWER = {1.00, 1.00, 1.00, 1.00};
+    /** Poussée des stages : blocs/tick gagnés à chaque tick plein gaz (x1440 = km/h gagnés par seconde) ; plafond de vitesse en blocs/tick. */
+    public static final double[] STAGE_ACCEL = {0, 0.004, 0.008, 0.014};
+    public static final double STAGE_CAP = 2.6;
     public static final double[] RPM = {1.00, 1.00, 1.00, 1.00};   // régime inchangé (15/10) : seule la puissance monte
     public static final double[] WEAR = {1.00, 1.30, 1.70, 2.30};
     /** Adhérence des roues motrices : MTS plafonne la force motrice à masse x friction, la puissance seule ne sert à rien tant que les roues patinent. */
@@ -45,7 +52,7 @@ public final class TuneAccess {
      * maintenue. Pendant l'injection : puissance multipliée par (1 + NITRO_POWER) et adhérence des roues motrices par NITRO_GRIP.
      */
     public static final String NITRO_KEY = "mnrp_nitro", CHARGE_KEY = "mnrp_nitro_charge";
-    public static final double[] NITRO_POWER = {0, 0.40, 0.80, 1.30}, NITRO_GRIP = {1.00, 1.00, 1.00, 1.00},
+    public static final double[] NITRO_POWER = {0, 0, 0, 0}, NITRO_GRIP = {1.00, 1.00, 1.00, 1.00},
             /** Poussée directe pendant l'injection (blocs/tick gagnés à chaque tick, vers l'avant) : MTS plafonne la force motrice par l'adhérence, une hausse de puissance seule ne se sent pas. */
             NITRO_ACCEL = {0, 0.008, 0.014, 0.022};
     /** Freins (origine / sport / course). */
@@ -130,13 +137,38 @@ public final class TuneAccess {
     private static Object inner(Entity e) { return field(e, "entity"); }
 
     /** Poussée directe de la nitro : ajoute {@code accel} à la vitesse du véhicule, vers l'avant (plafonnée à ~216 km/h). */
-    public static void push(Entity e, double accel) {
+    public static void push(Entity e, double accel) { push(e, accel, 3.0); }
+
+    /**
+     * Poussée des stages : seulement si le moteur tourne, que le conducteur accélère (accélérateur > 0), sans frein ni frein à main, et pas en marche arrière.
+     * Appelée à chaque tick par le serveur (TuneService) et par le client (ClientTune) : la voiture est simulée aux deux endroits.
+     */
+    public static void drivePush(Entity e, Setup s) {
+        if (s.stage() <= 0) return;
+        try {
+            Object v = inner(e);
+            if (v == null) return;
+            double throttle = valueOf(field(v, "throttleVar"));
+            if (!(throttle > 0.05)) return;
+            if (valueOf(field(v, "brakeVar")) > 0.05) return;
+            if (field(field(v, "parkingBrakeVar"), "isActive") instanceof Boolean b && b) return;
+            for (Object eng : engines(e)) {
+                if (field(eng, "running") instanceof Boolean r && !r) return;
+                double gear = valueOf(field(eng, "currentGearVar"));
+                if (!Double.isNaN(gear) && gear < 0) return;
+                break;
+            }
+            push(e, STAGE_ACCEL[s.stage()] * Math.min(1.0, throttle), STAGE_CAP);
+        } catch (Throwable ignored) {}
+    }
+
+    public static void push(Entity e, double accel, double cap) {
         try {
             Object motion = field(inner(e), "motion");
             double[] h = heading(e);
             if (motion == null || h == null) return;
             double mx = number(motion, "x", 0), mz = number(motion, "z", 0);
-            if (Math.hypot(mx, mz) > 3.0) return;
+            if (Math.hypot(mx, mz) > cap) return;
             Field fx = findField(motion.getClass(), "x"), fz = findField(motion.getClass(), "z");
             fx.setDouble(motion, mx + h[0] * accel);
             fz.setDouble(motion, mz + h[1] * accel);
@@ -382,9 +414,9 @@ public final class TuneAccess {
         // MTS remet TOUTES les variables d'un véhicule à leurs valeurs de définition à chaque tick (EntityManager.tickAll -> setVariableDefaults) :
         // poser une variable ne dure que 50 ms. On remplace donc, pour CHAQUE pièce réglée (moteur, roues, véhicule), sa définition par une copie
         // modifiée (propre à l'instance) : MTS relit alors nos valeurs à chaque tick.
+        // (l'ancien repli par variables est supprimé : poser une variable envoyait des paquets de synchronisation depuis le client et ne durait qu'un tick)
         boolean defsOk = applyDefinitions(e, s, log);
-        boolean varsOk = applyTuneVars(e, s, log);   // effet immédiat (avant le prochain tick) et repli
-        return defsOk || varsOk;
+        return defsOk || s.stage() > 0 || s.nitro() > 0;   // un stage / un kit nitro n'ont plus besoin de définition modifiée pour agir (poussée)
     }
 
     // ------------------------------------------------------------------ définitions par instance

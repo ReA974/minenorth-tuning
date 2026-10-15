@@ -138,7 +138,7 @@ public final class TuneAccess {
         return out;
     }
 
-    private static Object engineDef(Object engine) { return field(field(engine, "definition"), "engine"); }
+    private static Object engineDef(Object engine) { return field(original(engine), "engine"); }
 
     private static double valueOf(Object var) { return field(var, "currentValue") instanceof Number n ? n.doubleValue() : Double.NaN; }
 
@@ -181,7 +181,7 @@ public final class TuneAccess {
     private static double factoryFriction(Object wheel, String defField) {
         try {
             if (valueOf(field(wheel, "flatVar")) > 0) return Double.NaN;   // pneu crevé : on ne touche pas
-            double base = number(field(field(wheel, "definition"), "ground"), defField, Double.NaN);
+            double base = number(field(original(wheel), "ground"), defField, Double.NaN);
             java.lang.reflect.Method m = wheel.getClass().getDeclaredMethod("getFrictionLoss");
             m.setAccessible(true);
             return base - ((Number) m.invoke(wheel)).doubleValue();
@@ -219,7 +219,7 @@ public final class TuneAccess {
     /** Pont et freins : variables du véhicule lui-même. Faux si la valeur n'a pas été prise (véhicule illisible). */
     private static boolean applyChassis(Entity e, Setup s) {
         Object v = inner(e);
-        Object motorized = field(field(v, "definition"), "motorized");
+        Object motorized = v == null ? null : field(original(v), "motorized");
         if (v == null || motorized == null) return s.axle() == 0 && s.brakes() == 0;
         try {
             double axle = number(motorized, "axleRatio", 0), brake = number(motorized, "brakingFactor", 0);
@@ -247,7 +247,7 @@ public final class TuneAccess {
         Setup s = Setup.read(e);
         out.add("Réglage : stage " + s.stage() + ", suralim. " + s.boost() + ", pont " + s.axle() + ", pneus " + s.tires() + ", freins " + s.brakes());
         Object v = inner(e);
-        Object motorized = field(field(v, "definition"), "motorized");
+        Object motorized = v == null ? null : field(original(v), "motorized");
         if (v == null || motorized == null) { out.add("Véhicule MTS illisible."); return out; }
         out.add("Freins : usine " + f(number(motorized, "brakingFactor", Double.NaN)) + " -> actuel " + f(valueOf(field(v, "brakingFactorVar")))
                 + " (attendu x" + f(BRAKES[s.brakes()]) + ")");
@@ -310,6 +310,172 @@ public final class TuneAccess {
      * est impossible (moteur déjà suralimenté d'usine). {@code log} reçoit le détail (commande /mnbanc apply).
      */
     public static boolean applyTune(Entity e, Setup s, List<String> log) {
+        // MTS remet TOUTES les variables d'un véhicule à leurs valeurs de définition à chaque tick (EntityManager.tickAll -> setVariableDefaults) :
+        // poser une variable ne dure que 50 ms. On remplace donc, pour CHAQUE pièce réglée (moteur, roues, véhicule), sa définition par une copie
+        // modifiée (propre à l'instance) : MTS relit alors nos valeurs à chaque tick.
+        boolean defsOk = applyDefinitions(e, s, log);
+        boolean varsOk = applyTuneVars(e, s, log);   // effet immédiat (avant le prochain tick) et repli
+        return defsOk || varsOk;
+    }
+
+    // ------------------------------------------------------------------ définitions par instance
+
+    private static final java.util.Map<Object, Object> ORIGINAL = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+    private static final Object UNSAFE;
+    private static final java.lang.reflect.Method ALLOCATE;
+
+    static {
+        Object u = null;
+        java.lang.reflect.Method m = null;
+        try {
+            Class<?> c = Class.forName("sun.misc.Unsafe");
+            Field f = c.getDeclaredField("theUnsafe");
+            f.setAccessible(true);
+            u = f.get(null);
+            m = c.getMethod("allocateInstance", Class.class);
+        } catch (Throwable ignored) {}
+        UNSAFE = u;
+        ALLOCATE = m;
+    }
+
+    private static Field findField(Class<?> c, String name) {
+        for (; c != null && c != Object.class; c = c.getSuperclass()) {
+            try {
+                Field f = c.getDeclaredField(name);
+                f.setAccessible(true);
+                return f;
+            } catch (NoSuchFieldException ignored) {}
+        }
+        return null;
+    }
+
+    /** Copie superficielle (tous les champs d'instance) : les listes et sous-objets sont partagés, seuls les champs qu'on modifie sont remplacés. */
+    private static Object shallowCopy(Object o) throws Exception {
+        Object n = ALLOCATE.invoke(UNSAFE, o.getClass());
+        for (Class<?> c = o.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Field f : c.getDeclaredFields()) {
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                f.setAccessible(true);
+                f.set(n, f.get(o));
+            }
+        }
+        return n;
+    }
+
+    private static void setField(Object o, String name, Object value) throws Exception {
+        Field f = findField(o.getClass(), name);
+        if (f == null) throw new NoSuchFieldException(name);
+        f.set(o, value);
+    }
+
+    private static void setNum(Object o, String name, double v) throws Exception {
+        Field f = findField(o.getClass(), name);
+        if (f == null) throw new NoSuchFieldException(name);
+        Class<?> t = f.getType();
+        if (t == int.class) f.setInt(o, (int) Math.round(v));
+        else if (t == float.class) f.setFloat(o, (float) v);
+        else if (t == double.class) f.setDouble(o, v);
+        else throw new IllegalArgumentException(name + " : type " + t);
+    }
+
+    /** Définition d'usine de la pièce / du véhicule (celle d'avant notre première copie). */
+    private static Object original(Object holder) {
+        synchronized (ORIGINAL) {
+            return ORIGINAL.computeIfAbsent(holder, h -> field(h, "definition"));
+        }
+    }
+
+    private static void putDefinition(Object holder, Object def) throws Exception {
+        Field f = findField(holder.getClass(), "definition");
+        if (f == null) throw new NoSuchFieldException("definition");
+        f.set(holder, def);
+    }
+
+    private static boolean allOne(double... v) {
+        for (double d : v) if (Math.abs(d - 1.0) > 1e-9) return false;
+        return true;
+    }
+
+    private static boolean applyDefinitions(Entity e, Setup s, List<String> log) {
+        if (UNSAFE == null || ALLOCATE == null) {
+            if (log != null) log.add("Copie de définitions impossible (Unsafe indisponible).");
+            return false;
+        }
+        boolean[] done = {false};
+        List<Object> engines = engines(e);
+        java.util.Set<Object> driven = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        for (Object eng : engines) if (field(eng, "drivenWheels") instanceof Iterable<?> dw) for (Object w : dw) driven.add(w);
+        for (Object eng : engines) {
+            step(log, "moteur (définition)", () -> {
+                Object od = original(eng), oe = field(od, "engine");
+                if (oe == null) throw new IllegalStateException("définition de moteur illisible");
+                if (allOne(POWER[s.stage()], RPM[s.stage()], WEAR[s.stage()]) && s.boost() == 0) {
+                    putDefinition(eng, od);
+                    done[0] = true;
+                    return;
+                }
+                Object nd = shallowCopy(od), ne = shallowCopy(oe);
+                double fuel = number(oe, "fuelConsumption", 0), rpm = RPM[s.stage()];
+                setNum(ne, "fuelConsumption", fuel * POWER[s.stage()]);
+                setNum(ne, "maxRPM", number(oe, "maxRPM", 0) * rpm);
+                if (number(oe, "revlimitRPM", 0) > 0) setNum(ne, "revlimitRPM", number(oe, "revlimitRPM", 0) * rpm);
+                if (number(oe, "maxSafeRPM", 0) > 0) setNum(ne, "maxSafeRPM", number(oe, "maxSafeRPM", 0) * rpm);
+                if (number(oe, "engineWearFactor", 0) > 0) setNum(ne, "engineWearFactor", number(oe, "engineWearFactor", 0) * WEAR[s.stage()]);
+                double sc = number(oe, "superchargerFuelConsumption", 0);
+                if (s.boost() > 0) {
+                    if (sc > 0) {
+                        if (log != null) log.add("Suralimentation refusée : moteur déjà suralimenté d'usine.");
+                    } else {
+                        double eff = BOOST_WEAR[s.boost()];
+                        setNum(ne, "superchargerEfficiency", eff);
+                        setNum(ne, "superchargerFuelConsumption", fuel * BOOST_POWER[s.boost()] / eff);
+                    }
+                }
+                setField(nd, "engine", ne);
+                putDefinition(eng, nd);
+                done[0] = true;
+            });
+        }
+        for (Object w : wheels(e)) {
+            step(log, "roue (définition)", () -> {
+                Object od = original(w), og = field(od, "ground");
+                if (og == null) return;
+                double stage = driven.contains(w) ? GRIP[s.stage()] : 1.0, tire = TIRE_MOTIVE[s.tires()], lat = TIRE_LATERAL[s.tires()];
+                if (allOne(stage, tire, lat)) {
+                    putDefinition(w, od);
+                    return;
+                }
+                Object nd = shallowCopy(od), ng = shallowCopy(og);
+                setNum(ng, "motiveFriction", number(og, "motiveFriction", 0) * stage * tire);
+                setNum(ng, "lateralFriction", number(og, "lateralFriction", 0) * lat);
+                setField(nd, "ground", ng);
+                putDefinition(w, nd);
+                done[0] = true;
+            });
+        }
+        Object veh = inner(e);
+        if (veh != null) {
+            step(log, "véhicule (définition : pont, freins)", () -> {
+                Object od = original(veh), om = field(od, "motorized");
+                if (om == null) throw new IllegalStateException("définition de véhicule illisible");
+                if (allOne(AXLE[s.axle()], BRAKES[s.brakes()])) {
+                    putDefinition(veh, od);
+                    return;
+                }
+                Object nd = shallowCopy(od), nm = shallowCopy(om);
+                double axle = number(om, "axleRatio", 0), brake = number(om, "brakingFactor", 0);
+                if (axle > 0) setNum(nm, "axleRatio", axle * AXLE[s.axle()]);
+                setNum(nm, "brakingFactor", (brake > 0 ? brake : 1.0) * BRAKES[s.brakes()]);
+                setField(nd, "motorized", nm);
+                putDefinition(veh, nd);
+                done[0] = true;
+            });
+        }
+        if (log != null) log.add("Définitions modifiées (relues par MTS à chaque tick) : " + (done[0] ? "oui" : "non"));
+        return done[0];
+    }
+
+    private static boolean applyTuneVars(Entity e, Setup s, List<String> log) {
         boolean any = false, boostRefused = false;
         List<Object> engines = engines(e);
         if (log != null) log.add("Moteurs trouvés : " + engines.size());

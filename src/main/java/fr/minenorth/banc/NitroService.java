@@ -69,7 +69,6 @@ public final class NitroService {
 
     /** Reçu du client : la touche d'injection vient d'être enfoncée / relâchée. */
     public static void setKey(ServerPlayer p, boolean down) {
-        com.mojang.logging.LogUtils.getLogger().info("[Banc] Touche nitro {} par {} (assis : {})", down ? "ENFONCEE" : "relachee", p.getGameProfile().getName(), p.getVehicle() != null);
         if (!down) {
             for (Map.Entry<Entity, UUID> en : ACTIVE.entrySet()) if (en.getValue().equals(p.getUUID())) deactivate(en.getKey());
             return;

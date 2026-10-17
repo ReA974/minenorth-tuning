@@ -41,6 +41,8 @@ public final class NitroService {
     private static final double REAR = 1.3, SIDE = 0.45, HEIGHT = 0.3;
     /** Véhicule -> joueur qui maintient la touche. */
     private static final Map<Entity, UUID> ACTIVE = new ConcurrentHashMap<>();
+    /** Joueur -> tick de sa dernière pression sur la touche (limite de cadence, nettoyé à la déconnexion). */
+    private static final Map<UUID, Integer> KEY_DOWN = new ConcurrentHashMap<>();
     /** Ticks depuis le dernier départ du son de nitro (il dure 11,8 s : on le relance si l'injection continue). */
     private static final Map<Entity, Integer> SOUND_AGE = new ConcurrentHashMap<>();
     private static final int SOUND_TICKS = 230;
@@ -69,6 +71,11 @@ public final class NitroService {
 
     /** Reçu du client : la touche d'injection vient d'être enfoncée / relâchée. */
     public static void setKey(ServerPlayer p, boolean down) {
+        if (down) {
+            int now = p.server.getTickCount();
+            Integer last = KEY_DOWN.put(p.getUUID(), now);
+            if (last != null && now - last < 4) return;
+        }
         if (!down) {
             for (Map.Entry<Entity, UUID> en : ACTIVE.entrySet()) if (en.getValue().equals(p.getUUID())) deactivate(en.getKey());
             return;
@@ -108,6 +115,7 @@ public final class NitroService {
 
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent e) {
+        KEY_DOWN.remove(e.getEntity().getUUID());
         for (Map.Entry<Entity, UUID> en : ACTIVE.entrySet()) if (en.getValue().equals(e.getEntity().getUUID())) deactivate(en.getKey());
     }
 

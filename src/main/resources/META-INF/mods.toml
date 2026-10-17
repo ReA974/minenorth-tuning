@@ -25,3 +25,10 @@ mandatory=true
 versionRange="[1.1.0,2)"
 ordering="AFTER"
 side="BOTH"
+
+[[dependencies.minenorthbanc]]
+modId="minenorthapi"
+mandatory=true
+versionRange="[1.0.0,2)"
+ordering="AFTER"
+side="BOTH"

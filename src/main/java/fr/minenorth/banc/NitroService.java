@@ -96,7 +96,6 @@ public final class NitroService {
         if (ACTIVE.putIfAbsent(v, p.getUUID()) == null) {
             retune(v);
             ServerLevel l = p.serverLevel();
-            l.playSound(null, v.blockPosition(), ModBanc.NITRO_SOUND.get(), SoundSource.NEUTRAL, 1.5f, 1.0f);   // nitro.ogg (11,8 s)
             SOUND_AGE.put(v, 0);
             p.displayClientMessage(Component.literal("§bNitro " + "I".repeat(s.nitro()) + " activée §7(réserve " + reserve(v) + ")"), true);
         }
@@ -148,7 +147,6 @@ public final class NitroService {
             int age = SOUND_AGE.merge(v, 1, Integer::sum);
             if (age >= SOUND_TICKS) {
                 SOUND_AGE.put(v, 0);
-                ((ServerLevel) v.level()).playSound(null, v.blockPosition(), ModBanc.NITRO_SOUND.get(), SoundSource.NEUTRAL, 1.5f, 1.0f);
             }
             int lvl = TuneAccess.Setup.read(v).nitro();
             TuneAccess.push(v, TuneAccess.NITRO_ACCEL[lvl]);   // poussée directe (la force motrice est plafonnée par l'adhérence)

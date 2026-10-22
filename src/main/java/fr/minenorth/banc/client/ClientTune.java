@@ -32,6 +32,7 @@ public final class ClientTune {
         STATE.put(s.entityId(), s);
         MISSING.remove(s.entityId());
         NitroService.setClientActive(s.entityId(), s.nitroOn());
+        NitroSound.update(s.entityId(), s.nitroOn());
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != null) {
             Entity e = mc.level.getEntity(s.entityId());

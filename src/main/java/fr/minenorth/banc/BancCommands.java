@@ -28,7 +28,18 @@ public final class BancCommands {
                 .then(Commands.literal("nitro")
                         .then(Commands.literal("fill").executes(c -> nitro(c.getSource(), 0)))
                         .then(Commands.literal("on").executes(c -> nitro(c.getSource(), 1)))
-                        .then(Commands.literal("off").executes(c -> nitro(c.getSource(), 2))));
+                        .then(Commands.literal("off").executes(c -> nitro(c.getSource(), 2))))
+                // néons : recharger = relire config/minenorth-neons.json ; basculer = comme la touche (assis dans le véhicule) ; info = véhicule le plus proche
+                .then(Commands.literal("neons")
+                        .then(Commands.literal("recharger").executes(c -> {
+                            int n = NeonFits.load();
+                            int total = 0;
+                            for (String model : java.util.List.copyOf(NeonFits.models())) total += NeonService.resyncModel(model);
+                            c.getSource().sendSuccess(() -> Component.literal("§aRéglages de néons relus : " + n + " modèle(s)."), true);
+                            return 1;
+                        }))
+                        .then(Commands.literal("basculer").executes(c -> { NeonService.toggle(c.getSource().getPlayerOrException()); return 1; }))
+                        .then(Commands.literal("info").executes(c -> neonInfo(c.getSource()))));
     }
 
     @SubscribeEvent
@@ -63,6 +74,27 @@ public final class BancCommands {
                 p.sendSystemMessage(Component.literal("§7Nitro arrêtée."));
             }
         }
+        return 1;
+    }
+
+    private static int neonInfo(CommandSourceStack src) {
+        ServerPlayer p;
+        try {
+            p = src.getPlayerOrException();
+        } catch (Exception ex) {
+            src.sendFailure(Component.literal("Commande à lancer en jeu."));
+            return 0;
+        }
+        Entity v = TuneAccess.nearest(p.serverLevel(), p.position(), 8);
+        if (v == null) { p.sendSystemMessage(Component.literal("§cAucun véhicule MTS à moins de 8 blocs.")); return 0; }
+        NeonService.Neon n = NeonService.Neon.read(v);
+        String model = TuneAccess.modelKey(v);
+        p.sendSystemMessage(Component.literal("§6[Néons] §f" + TuneAccess.name(v) + " §7(" + model + ")"));
+        p.sendSystemMessage(Component.literal("§7Posés : " + n.installed() + ", allumés : " + n.on() + ", couleur #" + String.format("%06X", n.color())
+                + ", mode " + NeonService.MODE_NAMES[n.mode()]));
+        p.sendSystemMessage(Component.literal("§7Forme du modèle : " + NeonFits.get(model) + " ; modèle 3D : " + TuneAccess.modelLocation(v)));
+        p.sendSystemMessage(Component.literal("§7Vous êtes au volant : " + TuneAccess.isDriver(v, p) + " ; véhicule occupé trouvé : "
+                + (TuneAccess.ridden(p) == v)));
         return 1;
     }
 

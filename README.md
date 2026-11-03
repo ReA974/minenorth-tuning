@@ -1,4 +1,4 @@
-﻿# MineNorth Banc de puissance
+# MineNorth Banc de puissance
 
 Mod Forge 1.20.1 (`minenorthbanc`). Dépend de `minenorth-entreprises` (≥ 1.1.0) et d'Immersive Vehicles (par réflexion, 24.0.0).
 
@@ -65,3 +65,48 @@ Java 17. Builder d'abord `minenorth-api` puis `minenorth-entreprises` (jars lus 
 - **Stages = poussée directe, plus de hausse de puissance** : plus de puissance que d'adhérence fait PATINER les roues dans MTS (la force motrice est plafonnée à masse x adhérence), ce qui rendait les voitures plus lentes, « collées au sol ». Le stage ajoute maintenant une poussée vers l'avant tant que le conducteur accélère (moteur en marche, sans frein ni frein à main, pas en marche arrière) : Stage 1 / 2 / 3 = +6 / +12 / +20 km/h par seconde plein gaz, plafond de vitesse 187 km/h ; serveur ET client (la voiture est simulée aux deux endroits). Le stage ne modifie plus que l'usure du moteur.
 - **Nitro** : poussée seule (plus de hausse de puissance, qui faisait patiner).
 - L'ancien repli par variables est supprimé (il envoyait des paquets de synchronisation depuis le client).
+## Néons sous caisse (29/10)
+Personnalisation vendue par l'entreprise de modification automobile, depuis le **banc dynamométrique** (onglet **Néons** de son écran, à côté de Nitro).
+- **Pose** : personnel de l'entreprise du banc (mêmes contrôles que les réglages : à pied, véhicule à moins de 12 blocs du banc). Consomme un **kit néons**
+  (`minenorthbanc:kit_neons`, craft : 3 vitres, 2 poudres de glowstone, 1 redstone, 3 pépites de fer) dans l'inventaire de l'employé. Changer la couleur ou le mode
+  de néons déjà posés est gratuit ; **Retirer** rend le kit. Le client est facturé avec les factures du mod Entreprises (aucun paiement ici).
+- **Réglages** : couleur libre (nuancier de 12 couleurs + barre de teinte), 4 modes : **Fixe**, **Respiration** (pulsation lente), **Arc-en-ciel** (couleurs qui
+  défilent autour de la voiture), **Chenillard** (point lumineux qui fait le tour). Tant que l'écran est ouvert, le véhicule affiche les néons choisis **en direct**
+  (aperçu local, rien n'est enregistré avant « Poser » / « Appliquer »).
+- **Commande** : le **conducteur** (siège conducteur MTS) allume / éteint avec la touche **J** (voir les correctifs ci-dessous),
+  réassignable dans Contrôles > MineNorth > « Néons sous caisse ». Les passagers ne peuvent pas.
+- **Rangement** : couleur, mode et état allumé dans les données persistantes du véhicule (clé `mnrp_neons`), donc dans son NBT : ils suivent le véhicule au
+  garage, à la fourrière et à la vente. Après une destruction, l'assurance rend l'état de la dernière sortie du garage (néons compris s'ils étaient déjà posés).
+- **Rendu** : chez chaque joueur, d'après l'état envoyé par le serveur aux joueurs qui voient le véhicule (au moment où il apparaît, puis à chaque changement ;
+  revérifié chaque seconde car le garage restaure les données après l'apparition). Dessiné dans la passe du monde (`RenderLevelStageEvent`, après les blocs
+  translucides) avec le type de rendu de la foudre (additif, pleine luminosité) : **tubes** le long du bas de caisse (suivent l'inclinaison), lueur autour des tubes
+  et **halo coloré sur le sol** (projeté sous la voiture, s'estompe vers l'extérieur et quand la voiture est en l'air). La forme vient du modèle 3D du véhicule (voir les correctifs ci-dessous). Indépendant du rendu des entités MTS, donc compatible Embeddium ; avec Oculus, à vérifier selon le pack de shaders.
+- Protocole réseau passé à **6** (puis **7** avec les correctifs) : serveur et joueurs doivent avoir le même jar.
+
+### Idées étudiées, non faites
+- **Vitres teintées, couleur de jantes, kit carrosserie** : il faudrait connaître la géométrie des vitres / jantes / carrosserie de chaque modèle (elle est dans les
+  modèles OBJ des packs) : impossible proprement sans modifier les packs. Les **jantes** sont des pièces MTS : en changer reste possible en posant une autre
+  roue d'un pack (fonctionnement normal de MTS).
+- **Klaxon / échappement personnalisés** : les sons des véhicules sont joués par le moteur audio de MTS, sans point d'accroche pour les remplacer par véhicule ; on
+  ne pourrait qu'ajouter un son par-dessus celui du pack. Pas fait.
+- **Peinture** : existe déjà (cabine de peinture du mod Entreprises, variantes du pack). **Stage moteur, nitro, pneus, freins, pont** : déjà au banc.
+
+### Correctifs néons (29/10, soir)
+- **Taille et position** : les boîtes de collision ne décrivent pas la carrosserie (les voitures New Cars n'en ont que deux, sur le toit, marquées
+  intérieures) : les néons prenaient une taille de repli trop petite (~3,7 × 1,8 m au lieu de ~5,5 × 2,2 m). La forme est maintenant lue chez le joueur
+  dans le **modèle 3D du véhicule** (le fichier OBJ que MTS affiche, via `getModelLocation`) : bas du modèle (1er centile des hauteurs, pour ignorer
+  un échappement qui pend) et emprise des sommets dans les 35 cm au-dessus = contour des bas de caisse et pare-chocs, sans les rétroviseurs. Lu une fois
+  par modèle, en tâche de fond. Repli : d'après les roues (position monde ramenée dans le repère du véhicule), puis une voiture moyenne. Les tubes
+  sont posés 5 cm sous ce bas de caisse, en retrait de 6 cm sur les côtés et 15 cm à l'avant / arrière. Vérifié hors jeu sur les modèles des 4 packs
+  (citadines, SUV, sportives, motos, bus).
+- **Réglage par modèle** : onglet Néons du banc, section **Forme** : largeur (des deux côtés), avant, arrière, hauteur, par pas de 5 cm (± 1,5 bloc),
+  aperçu en direct ; **Enregistrer la forme** vaut pour tous les exemplaires du modèle (`pack:modele`, toutes peintures), renvoyé aux joueurs
+  aussitôt ; **Forme auto (0)** remet à zéro. Fichier `config/minenorth-neons.json` (créé au démarrage, vide = forme automatique, éditable à la main).
+- **Touche** : la touche O de la première version est celle d'**Oculus** pour l'écran des packs de shaders ; Minecraft ne donne un appui qu'à une
+  seule commande, les néons ne recevaient rien. Nouvelle touche par défaut **J** (libre dans MTS, Oculus et nos mods), sous un nouvel identifiant
+  (`key.minenorthbanc.neons_caisse`) pour que le défaut s'applique aussi à ceux qui avaient O enregistré. La touche est lue sur l'événement clavier
+  brut : même en conflit avec une autre commande, les néons reçoivent l'appui. Le serveur cherche le véhicule dont un siège porte le joueur (plus le
+  véhicule le plus proche) et vérifie le siège conducteur ; chaque appui est noté dans le log serveur (`[Banc] Touche neons : ...`).
+- **Commandes (OP)** : `/mnbanc neons info` (véhicule le plus proche : état, modèle, forme, chemin du modèle 3D, conducteur ou non),
+  `/mnbanc neons basculer` (comme la touche, assis dans le véhicule), `/mnbanc neons recharger` (relit le fichier de config et renvoie la forme aux joueurs).
+- Protocole réseau **7**.

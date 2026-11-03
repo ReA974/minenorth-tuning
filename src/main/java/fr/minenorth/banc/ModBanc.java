@@ -52,6 +52,10 @@ public final class ModBanc {
     public static final RegistryObject<Block> TIRE_MACHINE = BLOCKS.register("machine_pneus", TireMachineBlock::new);
     public static final RegistryObject<Item> TIRE_MACHINE_ITEM = ITEMS.register("machine_pneus", () -> new BlockItem(TIRE_MACHINE.get(), new Item.Properties()));
 
+    // ---- néons
+    /** Kit néons sous caisse : consommé à la pose au banc (rendu si les néons sont retirés). */
+    public static final RegistryObject<Item> NEON_KIT = ITEMS.register("kit_neons", () -> new Item(new Item.Properties().stacksTo(16)));
+
     public static void register(IEventBus bus) {
         BLOCKS.register(bus);
         ITEMS.register(bus);

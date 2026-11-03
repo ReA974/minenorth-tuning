@@ -228,6 +228,118 @@ public final class TuneAccess {
         }
     }
 
+    /** Modèle MTS du véhicule, « pack:modele » (sans la variante de peinture), ou "" si illisible. Clé des réglages de néons par modèle. */
+    public static String modelKey(Entity e) {
+        try {
+            Object def = original(inner(e));
+            if (field(def, "packID") instanceof String pack && field(def, "systemName") instanceof String sys) return pack + ":" + sys;
+        } catch (Throwable ignored) {}
+        return "";
+    }
+
+    /** Chemin du modèle 3D (OBJ) du véhicule tel que MTS le charge (ex. « /assets/new_cars/objmodels/vehicles/x.obj »), ou null. */
+    public static String modelLocation(Entity e) {
+        try {
+            Object v = inner(e), def = original(v), sub = field(v, "subDefinition");
+            if (def == null || sub == null) return null;
+            for (java.lang.reflect.Method m : def.getClass().getMethods())
+                if (m.getName().equals("getModelLocation") && m.getParameterCount() == 1) return m.invoke(def, sub) instanceof String s ? s : null;
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    /**
+     * Emprise d'après les roues (repli quand le modèle 3D est illisible), repère du modèle (+z vers l'avant) : {minX, maxX, minZ, maxZ, bas de caisse}.
+     * Les roues sont des sous-pièces (souvent montées sur une suspension) : leur position monde est ramenée dans le repère du véhicule.
+     */
+    public static double[] wheelFootprint(Entity e) {
+        try {
+            Object v = inner(e);
+            Object p = field(v, "position"), o = field(v, "orientation");
+            if (p == null || o == null || !(field(v, "allParts") instanceof Iterable<?> parts)) return null;
+            String[] m = {"m00", "m01", "m02", "m10", "m11", "m12", "m20", "m21", "m22"};
+            double[] r = new double[9];
+            for (int i = 0; i < 9; i++) r[i] = number(o, m[i], Double.NaN);
+            double px = number(p, "x", 0), py = number(p, "y", 0), pz = number(p, "z", 0);
+            double maxX = 0, minZ = Double.MAX_VALUE, maxZ = -Double.MAX_VALUE, ground = Double.MAX_VALUE;
+            boolean any = false;
+            for (Object part : parts) {
+                if (!part.getClass().getSimpleName().equals("PartGroundDevice")) continue;
+                Object wp = field(part, "position");
+                double dx = number(wp, "x", Double.NaN) - px, dy = number(wp, "y", Double.NaN) - py, dz = number(wp, "z", Double.NaN) - pz;
+                if (Double.isNaN(dx + dy + dz) || Double.isNaN(r[0])) continue;
+                // local = transposée(M) x (monde - position)
+                double lx = r[0] * dx + r[3] * dy + r[6] * dz, ly = r[1] * dx + r[4] * dy + r[7] * dz, lz = r[2] * dx + r[5] * dy + r[8] * dz;
+                double w = (double) part.getClass().getMethod("getWidth").invoke(part), h = (double) part.getClass().getMethod("getHeight").invoke(part);
+                maxX = Math.max(maxX, Math.abs(lx) + w / 2);
+                minZ = Math.min(minZ, lz); maxZ = Math.max(maxZ, lz);
+                ground = Math.min(ground, ly - h / 2);
+                any = true;
+            }
+            if (!any || maxX < 0.2) return null;
+            return new double[]{-maxX, maxX, minZ - 0.7, maxZ + 0.7, ground + 0.22};
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * Position et orientation du véhicule MTS interpolées pour le rendu : {x, y, z, m00..m22} (matrice ligne par ligne : monde = position + M x local).
+     * Null si illisible (le rendu se replie alors sur la position de l'entité Forge).
+     */
+    public static double[] pose(Entity e, float partial) {
+        try {
+            Object v = inner(e);
+            Object p = field(v, "position"), pp = field(v, "prevPosition"), o = field(v, "orientation"), po = field(v, "prevOrientation");
+            if (p == null || pp == null || o == null || po == null) return null;
+            double[] out = new double[12];
+            String[] xyz = {"x", "y", "z"};
+            for (int i = 0; i < 3; i++) {
+                double a = number(pp, xyz[i], Double.NaN), b = number(p, xyz[i], Double.NaN);
+                if (Double.isNaN(a) || Double.isNaN(b)) return null;
+                out[i] = a + (b - a) * partial;
+            }
+            String[] m = {"m00", "m01", "m02", "m10", "m11", "m12", "m20", "m21", "m22"};
+            for (int i = 0; i < 9; i++) {
+                double a = number(po, m[i], Double.NaN), b = number(o, m[i], Double.NaN);
+                if (Double.isNaN(a) || Double.isNaN(b)) return null;
+                out[3 + i] = a + (b - a) * partial;
+            }
+            return out;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Véhicule dans lequel le joueur est assis (un siège MTS dont il est le passager), à moins de 12 blocs ; repli : véhicule le plus proche (6 blocs). */
+    public static Entity ridden(net.minecraft.server.level.ServerPlayer p) {
+        Entity best = null;
+        for (Entity v : p.serverLevel().getEntities((Entity) null, p.getBoundingBox().inflate(12), TuneAccess::isVehicle)) {
+            try {
+                if (field(inner(v), "allParts") instanceof Iterable<?> parts)
+                    for (Object part : parts) if (part.getClass().getSimpleName().equals("PartSeat") && field(field(part, "rider"), "entity") == p) return v;
+            } catch (Throwable ignored) {}
+        }
+        return p.getVehicle() == null ? null : nearest(p.serverLevel(), p.position(), 6);
+    }
+
+    /** Le joueur est-il assis au siège conducteur (siège « isController ») ? Si MTS est illisible : vrai dès qu'il est assis dans le véhicule. */
+    public static boolean isDriver(Entity vehicle, Entity player) {
+        try {
+            if (!(field(inner(vehicle), "allParts") instanceof Iterable<?> parts)) return player.getVehicle() != null;
+            boolean seats = false;
+            for (Object part : parts) {
+                if (!part.getClass().getSimpleName().equals("PartSeat")) continue;
+                seats = true;
+                if (!(field(field(part, "placementDefinition"), "isController") instanceof Boolean c) || !c) continue;
+                if (field(field(part, "rider"), "entity") == player) return true;
+            }
+            return !seats && player.getVehicle() != null;
+        } catch (Throwable t) {
+            return player.getVehicle() != null;
+        }
+    }
+
     /** Nom du modèle (sous-définition MTS), ou l'identifiant système si illisible. */
     public static String name(Entity e) {
         try {

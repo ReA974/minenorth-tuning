@@ -20,5 +20,6 @@ public final class SharedTab {
         e.accept(ModBanc.ENGINE_KIT);
         e.accept(ModBanc.TIRE_MACHINE_ITEM);
         e.accept(ModBanc.TIRE_KIT);
+        e.accept(ModBanc.NEON_KIT);
     }
 }

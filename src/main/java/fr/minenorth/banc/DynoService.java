@@ -105,7 +105,9 @@ public final class DynoService {
                             : "Poussée +" + Math.round(TuneAccess.NITRO_ACCEL[i] * 1000) + " pendant l'injection, flamme " + NITRO_COLORS[i] + ". Touche au volant", i == cur0.nitro()));
             }
         }
-        BancNetwork.send(p, new BancNetwork.State(be.getBlockPos(), EntrepriseApi.companyName(p.server, be.companyId), vehicle, message, ok, lines, rows));
+        NeonService.Neon n = v == null ? NeonService.Neon.NONE : NeonService.Neon.read(v);
+        BancNetwork.send(p, new BancNetwork.State(be.getBlockPos(), EntrepriseApi.companyName(p.server, be.companyId), vehicle, message, ok, lines, rows,
+                v == null ? -1 : v.getId(), v == null ? new BancNetwork.NeonSync(-1, false, false, 0x20AAEB, 0, 0, 0, 0, 0) : BancNetwork.neonOf(v, n), neonKits(p)));
     }
 
     // ------------------------------------------------------------------ actions
@@ -144,6 +146,69 @@ public final class DynoService {
             default -> BRAKE_NAMES[a.index()] + " montés.";
         };
         send(p, be, what + " Pensez à facturer le client.", true);
+    }
+
+    // ------------------------------------------------------------------ néons
+
+    private static int neonKits(ServerPlayer p) {
+        if (p.isCreative()) return 99;
+        int n = 0;
+        for (net.minecraft.world.item.ItemStack st : p.getInventory().items) if (st.is(ModBanc.NEON_KIT.get())) n += st.getCount();
+        return n;
+    }
+
+    private static void takeNeonKit(ServerPlayer p) {
+        if (p.isCreative()) return;
+        for (net.minecraft.world.item.ItemStack st : p.getInventory().items) if (st.is(ModBanc.NEON_KIT.get())) { st.shrink(1); return; }
+    }
+
+    /**
+     * Onglet Néons : poser (un kit néons consommé), changer couleur / mode (gratuit : les néons sont déjà posés) ou retirer (le kit est rendu).
+     * Mêmes contrôles que les réglages moteur : personnel de l'entreprise du banc, à pied, véhicule près du banc.
+     */
+    public static void handleNeon(ServerPlayer p, BancNetwork.NeonApply a) {
+        if (!p.level().isLoaded(a.pos()) || p.blockPosition().distSqr(a.pos()) > USE_DISTANCE * USE_DISTANCE) return;
+        if (!(p.level().getBlockEntity(a.pos()) instanceof DynoBE be) || be.companyId < 0 || !isStaff(p, be)) return;
+        if (p.getVehicle() != null) { send(p, be, "Descendez du véhicule d'abord.", false); return; }
+        Entity v = vehicleNear(p, be);
+        if (v == null) { send(p, be, "Aucun véhicule à proximité du banc.", false); return; }
+        NeonService.Neon old = NeonService.Neon.read(v);
+        if (a.op() == BancNetwork.NEON_REMOVE) {
+            if (!old.installed()) { send(p, be, "Ce véhicule n'a pas de néons.", false); return; }
+            NeonService.set(v, NeonService.Neon.NONE);
+            if (!p.isCreative()) p.getInventory().placeItemBackInInventory(new net.minecraft.world.item.ItemStack(ModBanc.NEON_KIT.get()));
+            send(p, be, "Néons retirés : le kit vous est rendu.", true);
+            return;
+        }
+        if (a.op() != BancNetwork.NEON_INSTALL || a.mode() < 0 || a.mode() >= NeonService.MODE_NAMES.length) return;
+        int color = a.color() & 0xFFFFFF;
+        if (!old.installed()) {
+            if (neonKits(p) <= 0) { send(p, be, "Il vous faut un kit néons dans l'inventaire pour la pose.", false); return; }
+            takeNeonKit(p);
+            NeonService.set(v, new NeonService.Neon(true, true, color, a.mode()));
+            com.mojang.logging.LogUtils.getLogger().info("[Banc] Neons poses sur {} par {} (couleur #{}, mode {})", TuneAccess.name(v), p.getGameProfile().getName(),
+                    String.format("%06X", color), NeonService.MODE_NAMES[a.mode()]);
+            send(p, be, "Néons posés et allumés. Touche J au volant (Contrôles > MineNorth) pour les commander. Facturez le client.", true);
+            return;
+        }
+        if (old.color() == color && old.mode() == a.mode()) { send(p, be, "Les néons sont déjà réglés ainsi.", false); return; }
+        NeonService.set(v, new NeonService.Neon(true, true, color, a.mode()));
+        send(p, be, "Néons réglés : " + NeonService.MODE_NAMES[a.mode()] + ". Pensez à facturer le client.", true);
+    }
+
+    /** Onglet Néons, « Enregistrer la forme » : correction de forme pour tout le modèle (config/minenorth-neons.json), renvoyée aux joueurs. */
+    public static void handleFit(ServerPlayer p, BancNetwork.NeonFit a) {
+        if (!p.level().isLoaded(a.pos()) || p.blockPosition().distSqr(a.pos()) > USE_DISTANCE * USE_DISTANCE) return;
+        if (!(p.level().getBlockEntity(a.pos()) instanceof DynoBE be) || be.companyId < 0 || !isStaff(p, be)) return;
+        Entity v = vehicleNear(p, be);
+        if (v == null) { send(p, be, "Aucun véhicule à proximité du banc.", false); return; }
+        String model = TuneAccess.modelKey(v);
+        if (model.isEmpty()) { send(p, be, "Modèle du véhicule illisible : réglage impossible.", false); return; }
+        NeonFits.Fit fit = new NeonFits.Fit(a.width(), a.front(), a.rear(), a.height()).clamp();
+        NeonFits.put(model, fit);
+        int n = NeonService.resyncModel(model);
+        com.mojang.logging.LogUtils.getLogger().info("[Banc] Forme des neons de {} reglee par {} : {}", model, p.getGameProfile().getName(), fit);
+        send(p, be, (fit.isNone() ? "Forme automatique rétablie" : "Forme enregistrée") + " pour ce modèle (" + n + " véhicule(s) mis à jour).", true);
     }
 
     // ------------------------------------------------------------------ casse

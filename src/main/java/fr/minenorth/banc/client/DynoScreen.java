@@ -23,12 +23,13 @@ public class DynoScreen extends Screen {
     private int left, top, h, rowsTop, tabsTop;
     private int selected = -1, group;
     private Btn apply;
-    private static final String[] TABS = {"Moteur", "Pont", "Pneus", "Freins", "Nitro"};
-    /** Groupe de réglages de chaque onglet (le groupe 1, suralimentation, a été supprimé). */
-    private static final int[] GROUPS = {0, 2, 3, 4, 5};
+    private static final String[] TABS = {"Moteur", "Pont", "Pneus", "Freins", "Nitro", "Néons"};
+    /** Groupe de réglages de chaque onglet (le groupe 1, suralimentation, a été supprimé) ; NEONS ouvre l'écran des néons. */
+    private static final int NEONS = 6;
+    private static final int[] GROUPS = {0, 2, 3, 4, 5, NEONS};
     private static final int TAB_H = 20;
 
-    private DynoScreen(BancNetwork.State state) {
+    DynoScreen(BancNetwork.State state) {
         super(Component.literal("Banc de puissance"));
         this.state = state;
     }
@@ -36,6 +37,10 @@ public class DynoScreen extends Screen {
     /** Ouvre l'écran, ou met à jour celui qui est déjà ouvert sur ce banc (la sélection est gardée). */
     public static void show(BancNetwork.State s) {
         Minecraft mc = Minecraft.getInstance();
+        if (mc.screen instanceof NeonScreen n && n.state().pos().equals(s.pos())) {
+            n.update(s);
+            return;
+        }
         if (mc.screen instanceof DynoScreen d && d.state.pos().equals(s.pos())) {
             d.state = s;
             if (d.selected >= d.rowsOfGroup().size()) d.selected = -1;
@@ -78,6 +83,7 @@ public class DynoScreen extends Screen {
     public boolean mouseClicked(double mx, double my, int button) {
         if (button == 0 && my >= tabsTop && my < tabsTop + TAB_H && mx >= left + 10 && mx < left + 10 + tabW() * TABS.length) {
             int t = (int) ((mx - left - 10) / tabW());
+            if (GROUPS[t] == NEONS) { Minecraft.getInstance().setScreen(new NeonScreen(state)); return true; }
             if (GROUPS[t] != group) { group = GROUPS[t]; selected = -1; }
             return true;
         }

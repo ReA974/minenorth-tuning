@@ -24,7 +24,7 @@ public final class BancNetwork {
     private BancNetwork() {}
 
     public static final int ACT_APPLY = 1, ACT_REFRESH = 2;
-    private static final String PROTOCOL = "5";
+    private static final String PROTOCOL = "7";
     private static final int MAX_ROWS = 24, MAX_LINES = 12;
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MineNorthBanc.MOD_ID, "network"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
@@ -35,6 +35,10 @@ public final class BancNetwork {
         CHANNEL.registerMessage(2, NitroKey.class, NitroKey::encode, NitroKey::decode, NitroKey::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(3, TuneSync.class, TuneSync::encode, TuneSync::decode, TuneSync::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(4, ObdReport.class, ObdReport::encode, ObdReport::decode, ObdReport::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(5, NeonSync.class, NeonSync::encode, NeonSync::decode, NeonSync::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(6, NeonKey.class, NeonKey::encode, NeonKey::decode, NeonKey::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(7, NeonApply.class, NeonApply::encode, NeonApply::decode, NeonApply::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(8, NeonFit.class, NeonFit::encode, NeonFit::decode, NeonFit::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     /**
@@ -65,6 +69,74 @@ public final class BancNetwork {
 
     /** Envoie le réglage du véhicule à un joueur (il vient de le voir apparaître). */
     public static void syncTo(ServerPlayer p, net.minecraft.world.entity.Entity v) { CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), syncOf(v)); }
+
+    /**
+     * Serveur → clients : néons d'un véhicule (posés, allumés, couleur RGB, mode) et correction de forme de son modèle (NeonFits : largeur, avant,
+     * arrière, hauteur, en blocs). Le rendu est fait chez chaque joueur (ClientNeons).
+     */
+    public record NeonSync(int entityId, boolean installed, boolean on, int color, int mode, float width, float front, float rear, float height) {
+        public NeonSync withFit(fr.minenorth.banc.NeonFits.Fit f) { return new NeonSync(entityId, installed, on, color, mode, f.width(), f.front(), f.rear(), f.height()); }
+        public fr.minenorth.banc.NeonFits.Fit fit() { return new fr.minenorth.banc.NeonFits.Fit(width, front, rear, height); }
+        static void encode(NeonSync m, FriendlyByteBuf b) {
+            b.writeVarInt(m.entityId); b.writeBoolean(m.installed); b.writeBoolean(m.on); b.writeInt(m.color); b.writeVarInt(m.mode);
+            b.writeFloat(m.width); b.writeFloat(m.front); b.writeFloat(m.rear); b.writeFloat(m.height);
+        }
+        static NeonSync decode(FriendlyByteBuf b) {
+            return new NeonSync(b.readVarInt(), b.readBoolean(), b.readBoolean(), b.readInt(), b.readVarInt(), b.readFloat(), b.readFloat(), b.readFloat(), b.readFloat());
+        }
+        static void handle(NeonSync m, Supplier<NetworkEvent.Context> c) {
+            c.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> fr.minenorth.banc.client.ClientNeons.receive(m)));
+            c.get().setPacketHandled(true);
+        }
+    }
+
+    public static NeonSync neonOf(net.minecraft.world.entity.Entity v, fr.minenorth.banc.NeonService.Neon n) {
+        fr.minenorth.banc.NeonFits.Fit f = fr.minenorth.banc.NeonFits.get(fr.minenorth.banc.TuneAccess.modelKey(v));
+        return new NeonSync(v.getId(), n.installed(), n.on(), n.color(), n.mode(), f.width(), f.front(), f.rear(), f.height());
+    }
+
+    /** Envoie l'état des néons à tous les joueurs qui voient le véhicule. */
+    public static void neonSync(net.minecraft.world.entity.Entity v, fr.minenorth.banc.NeonService.Neon n) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> v), neonOf(v, n));
+    }
+
+    public static void neonTo(ServerPlayer p, net.minecraft.world.entity.Entity v, fr.minenorth.banc.NeonService.Neon n) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), neonOf(v, n));
+    }
+
+    /** Client → serveur : le conducteur appuie sur la touche des néons (bascule allumé / éteint). */
+    public record NeonKey() {
+        static void encode(NeonKey m, FriendlyByteBuf b) {}
+        static NeonKey decode(FriendlyByteBuf b) { return new NeonKey(); }
+        static void handle(NeonKey m, Supplier<NetworkEvent.Context> c) {
+            c.get().enqueueWork(() -> { ServerPlayer sp = c.get().getSender(); if (sp != null) fr.minenorth.banc.NeonService.toggle(sp); });
+            c.get().setPacketHandled(true);
+        }
+    }
+
+    public static final int NEON_INSTALL = 1, NEON_REMOVE = 2;
+
+    /** Client → serveur, depuis l'onglet Néons du banc : poser / modifier (couleur, mode) ou retirer les néons. Tout est revérifié côté serveur. */
+    public record NeonApply(BlockPos pos, int op, int color, int mode) {
+        static void encode(NeonApply a, FriendlyByteBuf b) { b.writeBlockPos(a.pos); b.writeVarInt(a.op); b.writeInt(a.color); b.writeVarInt(a.mode); }
+        static NeonApply decode(FriendlyByteBuf b) { return new NeonApply(b.readBlockPos(), b.readVarInt(), b.readInt(), b.readVarInt()); }
+        static void handle(NeonApply a, Supplier<NetworkEvent.Context> c) {
+            c.get().enqueueWork(() -> { ServerPlayer sp = c.get().getSender(); if (sp != null) DynoService.handleNeon(sp, a); });
+            c.get().setPacketHandled(true);
+        }
+    }
+
+    /** Client → serveur, depuis l'onglet Néons du banc : enregistre la correction de forme pour le MODÈLE du véhicule près du banc (tous ses exemplaires). */
+    public record NeonFit(BlockPos pos, float width, float front, float rear, float height) {
+        static void encode(NeonFit a, FriendlyByteBuf b) {
+            b.writeBlockPos(a.pos); b.writeFloat(a.width); b.writeFloat(a.front); b.writeFloat(a.rear); b.writeFloat(a.height);
+        }
+        static NeonFit decode(FriendlyByteBuf b) { return new NeonFit(b.readBlockPos(), b.readFloat(), b.readFloat(), b.readFloat(), b.readFloat()); }
+        static void handle(NeonFit a, Supplier<NetworkEvent.Context> c) {
+            c.get().enqueueWork(() -> { ServerPlayer sp = c.get().getSender(); if (sp != null) DynoService.handleFit(sp, a); });
+            c.get().setPacketHandled(true);
+        }
+    }
 
     /** Client → serveur : la touche d'injection de nitro est enfoncée (true) ou relâchée (false). */
     public record NitroKey(boolean down) {
@@ -121,16 +193,22 @@ public final class BancNetwork {
     }
 
     /** Serveur → client : état de l'écran (l'ouvre ou le met à jour). */
-    public record State(BlockPos pos, String company, String vehicle, String message, boolean ok, List<String> lines, List<Row> rows) {
+    public record State(BlockPos pos, String company, String vehicle, String message, boolean ok, List<String> lines, List<Row> rows,
+                        int vehicleId, NeonSync neon, int neonKits) {
         static void encode(State s, FriendlyByteBuf b) {
             b.writeBlockPos(s.pos); b.writeUtf(cut(s.company, 64), 64); b.writeUtf(cut(s.vehicle, 64), 64);
+            b.writeVarInt(s.vehicleId); NeonSync.encode(s.neon, b); b.writeVarInt(s.neonKits);
             b.writeUtf(cut(s.message, 120), 120); b.writeBoolean(s.ok);
             b.writeVarInt(s.lines.size()); for (String l : s.lines) b.writeUtf(cut(l, 120), 120);
             b.writeVarInt(s.rows.size()); for (Row r : s.rows) Row.encode(b, r);
         }
         static State decode(FriendlyByteBuf b) {
             BlockPos pos = b.readBlockPos();
-            String company = b.readUtf(64), vehicle = b.readUtf(64), message = b.readUtf(120);
+            String company = b.readUtf(64), vehicle = b.readUtf(64);
+            int vehicleId = b.readVarInt();
+            NeonSync neon = NeonSync.decode(b);
+            int kits = b.readVarInt();
+            String message = b.readUtf(120);
             boolean ok = b.readBoolean();
             int nl = b.readVarInt();
             if (nl < 0 || nl > MAX_LINES) throw new io.netty.handler.codec.DecoderException("Trop de lignes : " + nl);
@@ -140,7 +218,7 @@ public final class BancNetwork {
             if (nr < 0 || nr > MAX_ROWS) throw new io.netty.handler.codec.DecoderException("Trop de niveaux : " + nr);
             List<Row> rows = new ArrayList<>(nr);
             for (int i = 0; i < nr; i++) rows.add(Row.decode(b));
-            return new State(pos, company, vehicle, message, ok, lines, rows);
+            return new State(pos, company, vehicle, message, ok, lines, rows, vehicleId, neon, kits);
         }
         static void handle(State s, Supplier<NetworkEvent.Context> c) {
             c.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> fr.minenorth.banc.client.DynoScreen.show(s)));

@@ -110,3 +110,10 @@ Personnalisation vendue par l'entreprise de modification automobile, depuis le *
 - **Commandes (OP)** : `/mnbanc neons info` (véhicule le plus proche : état, modèle, forme, chemin du modèle 3D, conducteur ou non),
   `/mnbanc neons basculer` (comme la touche, assis dans le véhicule), `/mnbanc neons recharger` (relit le fichier de config et renvoie la forme aux joueurs).
 - Protocole réseau **7**.
+
+## Néons : écran de réglage de la taille et aperçu 3D (04/11)
+- L'onglet Néons s'élargit : à droite, un **aperçu 3D** qui tourne tout seul (ou à la souris, en glissant) : sol quadrillé de 1 m, contour
+  du bas de caisse lu dans le modèle 3D du véhicule, silhouette de la caisse, flèche AVANT, et le cadre des néons dans la couleur choisie
+  avec son halo au sol. Sous l'aperçu : **dimensions réelles** des néons (longueur x largeur) et hauteur sous caisse.
+- Réglage de la taille (largeur, avant, arrière, hauteur, pour tout le modèle) : clic = 5 cm, **Maj + clic = 25 cm**, **molette** sur la case.
+  Le calcul du cadre est le même pour le rendu dans le monde et l'aperçu (`ClientNeons.rect`).

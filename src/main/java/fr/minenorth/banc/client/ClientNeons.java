@@ -122,9 +122,8 @@ public final class ClientNeons {
                     cs, 0, -sn, 0, 1, 0, sn, 0, cs};
         }
         // forme du bas de caisse (modèle 3D du pack), en retrait de quelques cm pour rester sous la carrosserie, + correction du modèle (banc)
-        double[] f = NeonShapes.of(v);
-        double mid = (f[0] + f[1]) / 2, half = Math.max(0.1, (f[1] - f[0]) / 2 - 0.06 + s.width());
-        double x0 = mid - half, x1 = mid + half, z0 = f[2] + 0.15 - s.rear(), z1 = Math.max(z0 + 0.3, f[3] - 0.15 + s.front()), y = f[4] - 0.05 + s.height();
+        double[] r = rect(NeonShapes.of(v), s.width(), s.front(), s.rear(), s.height());
+        double x0 = r[0], x1 = r[1], z0 = r[2], z1 = r[3], y = r[4];
 
         // ---- halo au sol : plan horizontal sous la caisse, centre coloré qui s'estompe vers l'extérieur
         double cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
@@ -180,6 +179,16 @@ public final class ClientNeons {
             }
             done += len;
         }
+    }
+
+    /**
+     * Rectangle des tubes dans le repère du véhicule : {x0, x1, z0, z1, y} d'après la forme du bas de caisse (NeonShapes) et les corrections
+     * du banc. Le même calcul sert au rendu dans le monde et à l'aperçu 3D de l'écran du banc.
+     */
+    static double[] rect(double[] f, double width, double front, double rear, double height) {
+        double mid = (f[0] + f[1]) / 2, half = Math.max(0.1, (f[1] - f[0]) / 2 - 0.06 + width);
+        double z0 = f[2] + 0.15 - rear, z1 = Math.max(z0 + 0.3, f[3] - 0.15 + front);
+        return new double[]{mid - half, mid + half, z0, z1, f[4] - 0.05 + height};
     }
 
     /** Coin d'un rectangle horizontal centré (cx, cz), d'axes droite (rx, rz) / avant (fx, fz) : {x, z} x 4 dans l'ordre du tour. */

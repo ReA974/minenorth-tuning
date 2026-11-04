@@ -24,7 +24,7 @@ public final class BancNetwork {
     private BancNetwork() {}
 
     public static final int ACT_APPLY = 1, ACT_REFRESH = 2;
-    private static final String PROTOCOL = "7";
+    private static final String PROTOCOL = "8";
     private static final int MAX_ROWS = 24, MAX_LINES = 12;
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MineNorthBanc.MOD_ID, "network"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
@@ -39,6 +39,7 @@ public final class BancNetwork {
         CHANNEL.registerMessage(6, NeonKey.class, NeonKey::encode, NeonKey::decode, NeonKey::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(7, NeonApply.class, NeonApply::encode, NeonApply::decode, NeonApply::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(8, NeonFit.class, NeonFit::encode, NeonFit::decode, NeonFit::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(9, ExhaustSync.class, ExhaustSync::encode, ExhaustSync::decode, ExhaustSync::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     /**
@@ -137,6 +138,41 @@ public final class BancNetwork {
             c.get().setPacketHandled(true);
         }
     }
+
+    /**
+     * Serveur → client : sorties d'échappement imposées par modèle (config/minenorth-echappements.json), pour les flammes de nitro. Chaque sortie :
+     * {x, y, z, dx, dy, dz} dans le repère du modèle. Envoyé à la connexion et après /mnbanc echappements recharger.
+     */
+    public record ExhaustSync(java.util.Map<String, List<float[]>> fits) {
+        static void encode(ExhaustSync m, FriendlyByteBuf b) {
+            b.writeVarInt(m.fits.size());
+            for (java.util.Map.Entry<String, List<float[]>> en : m.fits.entrySet()) {
+                b.writeUtf(en.getKey(), 128);
+                b.writeVarInt(en.getValue().size());
+                for (float[] p : en.getValue()) for (int i = 0; i < 6; i++) b.writeFloat(p[i]);
+            }
+        }
+        static ExhaustSync decode(FriendlyByteBuf b) {
+            int n = Math.min(4096, b.readVarInt());
+            java.util.Map<String, List<float[]>> out = new java.util.HashMap<>();
+            for (int k = 0; k < n; k++) {
+                String key = b.readUtf(128);
+                int c = Math.min(6, b.readVarInt());
+                List<float[]> pipes = new ArrayList<>();
+                for (int j = 0; j < c; j++) { float[] p = new float[6]; for (int i = 0; i < 6; i++) p[i] = b.readFloat(); pipes.add(p); }
+                out.put(key, pipes);
+            }
+            return new ExhaustSync(out);
+        }
+        static void handle(ExhaustSync m, Supplier<NetworkEvent.Context> c) {
+            c.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> fr.minenorth.banc.client.NitroFlames.receiveFits(m.fits)));
+            c.get().setPacketHandled(true);
+        }
+    }
+
+    public static void exhaustsTo(ServerPlayer p, java.util.Map<String, List<float[]>> fits) { CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), new ExhaustSync(fits)); }
+
+    public static void exhaustsToAll(java.util.Map<String, List<float[]>> fits) { CHANNEL.send(PacketDistributor.ALL.noArg(), new ExhaustSync(fits)); }
 
     /** Client → serveur : la touche d'injection de nitro est enfoncée (true) ou relâchée (false). */
     public record NitroKey(boolean down) {

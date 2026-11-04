@@ -39,7 +39,16 @@ public final class BancCommands {
                             return 1;
                         }))
                         .then(Commands.literal("basculer").executes(c -> { NeonService.toggle(c.getSource().getPlayerOrException()); return 1; }))
-                        .then(Commands.literal("info").executes(c -> neonInfo(c.getSource()))));
+                        .then(Commands.literal("info").executes(c -> neonInfo(c.getSource()))))
+                // échappements (flammes de nitro) : info = sorties du véhicule le plus proche ; recharger = relire config/minenorth-echappements.json
+                .then(Commands.literal("echappements")
+                        .then(Commands.literal("info").executes(c -> exhaustInfo(c.getSource())))
+                        .then(Commands.literal("recharger").executes(c -> {
+                            int n = ExhaustFits.load();
+                            fr.minenorth.banc.network.BancNetwork.exhaustsToAll(ExhaustFits.all());
+                            c.getSource().sendSuccess(() -> Component.literal("§aÉchappements relus : " + n + " modèle(s) réglé(s), envoyés aux joueurs."), true);
+                            return 1;
+                        })));
     }
 
     @SubscribeEvent
@@ -74,6 +83,23 @@ public final class BancCommands {
                 p.sendSystemMessage(Component.literal("§7Nitro arrêtée."));
             }
         }
+        return 1;
+    }
+
+    private static int exhaustInfo(CommandSourceStack src) {
+        ServerPlayer p = src.getPlayer();
+        if (p == null) { src.sendFailure(Component.literal("Commande à lancer en jeu.")); return 0; }
+        Entity v = TuneAccess.nearest(p.serverLevel(), p.position(), 8);
+        if (v == null) { p.sendSystemMessage(Component.literal("§cAucun véhicule MTS à moins de 8 blocs.")); return 0; }
+        String model = TuneAccess.modelKey(v);
+        p.sendSystemMessage(Component.literal("§6[Échappements] §f" + TuneAccess.name(v) + " §7(" + model + ")"));
+        java.util.List<float[]> fit = ExhaustFits.all().get(model);
+        if (fit != null) p.sendSystemMessage(Component.literal("§aRéglage du fichier utilisé (" + fit.size() + " sortie(s)) :"));
+        if (fit != null) for (float[] f : fit) p.sendSystemMessage(Component.literal(String.format(java.util.Locale.ROOT, "§7  [%.2f, %.2f, %.2f] vers [%.2f, %.2f, %.2f]", f[0], f[1], f[2], f[3], f[4], f[5])));
+        java.util.List<double[]> mts = TuneAccess.exhausts(v);
+        p.sendSystemMessage(Component.literal(mts.isEmpty() ? "§eAucune sortie trouvée dans le pack MTS : repli à l'arrière d'après les collisions (à régler dans config/minenorth-echappements.json)."
+                : "§7Lues dans le pack MTS (" + mts.size() + ")" + (fit != null ? ", ignorées :" : " :")));
+        for (double[] d : mts) p.sendSystemMessage(Component.literal(String.format(java.util.Locale.ROOT, "§7  [%.2f, %.2f, %.2f] vers [%.2f, %.2f, %.2f]", d[0], d[1], d[2], d[3], d[4], d[5])));
         return 1;
     }
 

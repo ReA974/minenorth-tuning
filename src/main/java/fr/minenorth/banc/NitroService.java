@@ -1,8 +1,5 @@
 package fr.minenorth.banc;
 
-import net.minecraft.core.particles.DustParticleOptions;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -18,7 +15,6 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.joml.Vector3f;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -27,8 +23,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Nitro : kit installé au banc (niveau I / II / III), réserve de gaz en ticks rangée dans les données persistantes du véhicule, injection tant que
- * le conducteur maintient la touche (paquet client -> serveur). Pendant l'injection la puissance et l'adhérence augmentent (voir TuneAccess) et des
- * flammes colorées sortent des échappements (particules : orange / bleu / violet selon le niveau). Les bouteilles rechargent le véhicule
+ * le conducteur maintient la touche (paquet client -> serveur). Pendant l'injection la voiture reçoit une poussée (voir TuneAccess) ; les flammes
+ * des échappements sont dessinées chez chaque joueur (client/NitroFlames) d'après l'état « nitro en cours » envoyé par BancNetwork.TuneSync :
+ * aucune particule n'est envoyée par le serveur. Les bouteilles rechargent le véhicule
  * (clic droit sur le véhicule, ou clic accroupi sur un chariot de bouteilles à proximité).
  */
 @Mod.EventBusSubscriber(modid = MineNorthBanc.MOD_ID)
@@ -37,8 +34,6 @@ public final class NitroService {
 
     /** Une bouteille = 15 s d'injection ; la réserve d'un véhicule est limitée à 90 s. */
     public static final int BOTTLE_TICKS = 300, MAX_TICKS = 1800;
-    /** Repli si la géométrie du véhicule est illisible : distance derrière l'origine, écart latéral, hauteur. */
-    private static final double REAR = 1.3, SIDE = 0.45, HEIGHT = 0.3;
     /** Véhicule -> joueur qui maintient la touche. */
     private static final Map<Entity, UUID> ACTIVE = new ConcurrentHashMap<>();
     /** Joueur -> tick de sa dernière pression sur la touche (limite de cadence, nettoyé à la déconnexion). */
@@ -118,7 +113,7 @@ public final class NitroService {
         for (Map.Entry<Entity, UUID> en : ACTIVE.entrySet()) if (en.getValue().equals(e.getEntity().getUUID())) deactivate(en.getKey());
     }
 
-    // ------------------------------------------------------------------ tick : consommation + flammes
+    // ------------------------------------------------------------------ tick : consommation + poussée
 
     @SubscribeEvent
     public static void onTick(TickEvent.ServerTickEvent e) {
@@ -150,39 +145,6 @@ public final class NitroService {
             }
             int lvl = TuneAccess.Setup.read(v).nitro();
             TuneAccess.push(v, TuneAccess.NITRO_ACCEL[lvl]);   // poussée directe (la force motrice est plafonnée par l'adhérence)
-            flames((ServerLevel) v.level(), v, lvl);
-        }
-    }
-
-    private static void flames(ServerLevel l, Entity v, int level) {
-        double[] h = TuneAccess.heading(v);
-        double hx, hz;
-        if (h != null) { hx = h[0]; hz = h[1]; }
-        else { double yaw = Math.toRadians(v.getYRot()); hx = -Math.sin(yaw); hz = Math.cos(yaw); }
-        double[] g = TuneAccess.rearGeometry(v);   // {arrière, demi-largeur, bas} d'après les boîtes de collision
-        double rear = g != null ? g[0] + 0.05 : REAR, side = g != null ? Math.min(0.55, g[1] * 0.4) : SIDE, height = (g != null ? g[2] : 0) + HEIGHT;
-        double bx = v.getX() - hx * rear, by = v.getY() + height, bz = v.getZ() - hz * rear;
-        double px = -hz, pz = hx;   // perpendiculaire : deux échappements
-        // couleur de la flamme selon le niveau : I orange, II bleu, III violet
-        ParticleOptions core = switch (level) {
-            case 2 -> ParticleTypes.SOUL_FIRE_FLAME;
-            case 3 -> ParticleTypes.DRAGON_BREATH;
-            default -> ParticleTypes.FLAME;
-        };
-        Vector3f color = switch (level) {
-            case 2 -> new Vector3f(0.25f, 0.55f, 1.0f);
-            case 3 -> new Vector3f(0.72f, 0.25f, 1.0f);
-            default -> new Vector3f(1.0f, 0.55f, 0.12f);
-        };
-        long t = l.getGameTime();
-        for (int s2 = -1; s2 <= 1; s2 += 2) {
-            double x = bx + px * side * s2, z = bz + pz * side * s2;
-            // flamme courte vers l'arrière (count 0 : les « offsets » sont la direction, x vitesse)
-            l.sendParticles(core, x, by, z, 0, -hx, 0.03, -hz, 0.22);
-            l.sendParticles(core, x, by, z, 0, -hx, 0.0, -hz, 0.32);
-            l.sendParticles(new DustParticleOptions(color, 1.3f), x - hx * 0.3, by, z - hz * 0.3, 2, 0.12, 0.08, 0.12, 0.0);
-            if (t % 3 == 0) l.sendParticles(ParticleTypes.FIREWORK, x, by, z, 1, 0.05, 0.05, 0.05, 0.12);   // étincelles façon feu d'artifice
-            if (t % 5 == 0) l.sendParticles(ParticleTypes.SMOKE, x - hx * 0.5, by + 0.1, z - hz * 0.5, 1, 0.05, 0.05, 0.05, 0.01);
         }
     }
 

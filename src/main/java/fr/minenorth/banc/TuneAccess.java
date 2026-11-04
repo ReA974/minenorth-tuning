@@ -228,6 +228,60 @@ public final class TuneAccess {
         }
     }
 
+    /**
+     * Sorties d'échappement lues dans la définition MTS, repère du modèle (+z vers l'avant) : liste de {x, y, z, dx, dy, dz} (direction du jet
+     * normalisée). Dans Immersive Vehicles 24, un échappement est une particule de fumée (« smoke ») du véhicule, le plus souvent liée à une variable
+     * du moteur (engine_piston..., engine_backfired...) ; les anciens « exhaustObjects » sont convertis par MTS en « particleObjects » de l'emplacement
+     * moteur. On cherche dans l'ordre : particules du véhicule, particules des emplacements, particules des moteurs posés (décalées de leur position).
+     * Positions dédoublonnées (la même sortie a souvent deux particules : fumée et retour de flamme), 6 au plus. Liste vide si rien n'est trouvé.
+     */
+    public static List<double[]> exhausts(Entity e) {
+        List<double[]> out = new ArrayList<>();
+        try {
+            Object veh = inner(e), def = original(veh);
+            collectExhausts(field(field(def, "rendering"), "particles"), 0, 0, 0, out);
+            if (field(def, "parts") instanceof Iterable<?> slots)
+                for (Object slot : slots) collectExhausts(field(slot, "particleObjects"), 0, 0, 0, out);
+            if (out.isEmpty())
+                for (Object eng : engines(e)) {
+                    Object off = field(eng, "localOffset");
+                    collectExhausts(field(field(original(eng), "rendering"), "particles"), number(off, "x", 0), number(off, "y", 0), number(off, "z", 0), out);
+                    collectExhausts(field(field(eng, "placementDefinition"), "particleObjects"), 0, 0, 0, out);
+                }
+        } catch (Throwable ignored) {}
+        return out;
+    }
+
+    private static void collectExhausts(Object list, double ox, double oy, double oz, List<double[]> out) {
+        if (!(list instanceof Iterable<?> particles)) return;
+        for (Object p : particles) {
+            if (out.size() >= 6) return;
+            Object type = field(p, "type");
+            if (type == null || !type.toString().equalsIgnoreCase("smoke")) continue;
+            Object pos = field(p, "pos");
+            double x = number(pos, "x", Double.NaN), y = number(pos, "y", Double.NaN), z = number(pos, "z", Double.NaN);
+            if (Double.isNaN(x + y + z)) continue;
+            Object vel = field(p, "initialVelocity");
+            if (vel == null) vel = field(p, "velocityVector");
+            double vx = number(vel, "x", 0), vy = number(vel, "y", 0), vz = number(vel, "z", 0);
+            boolean engineVar = false, damage = false;
+            if (field(p, "activeAnimations") instanceof Iterable<?> anims)
+                for (Object a : anims) {
+                    String var = field(a, "variable") instanceof String s ? s.toLowerCase(java.util.Locale.ROOT) : "";
+                    if (var.contains("damage") || var.contains("overheat") || var.contains("health") || var.contains("fire")) damage = true;
+                    if (var.contains("engine") || var.contains("piston") || var.contains("backfire") || var.contains("exhaust") || var.contains("rpm")) engineVar = true;
+                }
+            // une fumée d'échappement part vers l'arrière, ou est liée au moteur et placée à l'arrière ; pas les fumées de dégâts
+            if (damage || !(vz < -0.1 || (engineVar && z + oz < 0))) continue;
+            double len = Math.sqrt(vx * vx + vy * vy + vz * vz);
+            double[] d = len > 0.1 ? new double[]{vx / len, vy / len, vz / len} : new double[]{0, 0, -1};
+            double px = x + ox, py = y + oy, pz = z + oz;
+            boolean dup = false;
+            for (double[] q : out) if (Math.abs(q[0] - px) + Math.abs(q[1] - py) + Math.abs(q[2] - pz) < 0.12) { dup = true; break; }
+            if (!dup) out.add(new double[]{px, py, pz, d[0], d[1], d[2]});
+        }
+    }
+
     /** Modèle MTS du véhicule, « pack:modele » (sans la variante de peinture), ou "" si illisible. Clé des réglages de néons par modèle. */
     public static String modelKey(Entity e) {
         try {

@@ -47,7 +47,7 @@ Java 17. Builder d'abord `minenorth-api` puis `minenorth-entreprises` (jars lus 
 **/mnbanc apply** (OP) : force l'application du réglage mémorisé sur le véhicule le plus proche et affiche le résultat de chaque étape (puissance, régime, limiteur, usure, suralimentation, roues, pont/freins) avec les éventuels échecs ou écarts de valeur ; à lancer puis suivre de **/mnbanc debug** pour voir les valeurs réellement en vigueur.
 
 ## Nitro (15/10)
-- **Kit au banc** (onglet **Nitro**) : Nitro I / II / III, à facturer au client comme les autres réglages. Pendant l'injection : puissance +40 / +80 / +130 % et adhérence des roues motrices +8 / +16 / +25 %. Flamme des échappements : **orange** (I), **bleue** (II), **violette** (III) (particules courtes + étincelles de feu d'artifice).
+- **Kit au banc** (onglet **Nitro**) : Nitro I / II / III, à facturer au client comme les autres réglages. Pendant l'injection : puissance +40 / +80 / +130 % et adhérence des roues motrices +8 / +16 / +25 %. Flammes des échappements en 3D (voir « Flammes de nitro en 3D » plus bas) : cœur bleu-blanc puis orange et rouge ; plus longues au niveau II, bout violet au niveau III.
 - **Injection** : maintenir la touche **Maj gauche** (réassignable : Contrôles > MineNorth > « Injection de nitro ») au volant d'un véhicule équipé. Elle consomme la réserve (1 s de réserve = 1 s d'injection) ; le message d'action affiche le temps restant.
 - **Réserve** : 15 s par **bouteille de nitro** (craft : poudre de blaze + 5 lingots de fer + redstone = 2 bouteilles), 90 s au maximum par véhicule. Recharge : clic droit sur le véhicule avec une bouteille, ou **chariot de nitro** (craft : coffre + 3 lingots de fer... + 2 wagonnets) : clic droit = inventaire de 9 bouteilles, **clic droit accroupi** = recharge le véhicule le plus proche (6 blocs) avec les bouteilles du chariot.
 - Les sons (wastegate, compresseur) viendront plus tard.
@@ -117,3 +117,33 @@ Personnalisation vendue par l'entreprise de modification automobile, depuis le *
   avec son halo au sol. Sous l'aperçu : **dimensions réelles** des néons (longueur x largeur) et hauteur sous caisse.
 - Réglage de la taille (largeur, avant, arrière, hauteur, pour tout le modèle) : clic = 5 cm, **Maj + clic = 25 cm**, **molette** sur la case.
   Le calcul du cadre est le même pour le rendu dans le monde et l'aperçu (`ClientNeons.rect`).
+
+## Flammes de nitro en 3D (04/11)
+Les flammes ne sont plus des particules envoyées par le serveur : chaque joueur les dessine lui-même d'après l'état « nitro en cours » que le serveur
+envoie déjà aux joueurs qui voient la voiture (`TuneSync`). Tout le monde voit donc les flammes, sans trafic réseau supplémentaire. Code : `client/NitroFlames.java`.
+- **Jet** à chaque sortie d'échappement : trois cônes imbriqués en mélange additif (cœur bleu-blanc, flamme bleu → orange → rouge, enveloppe rouge diffuse),
+  avec trois « diamants de choc » dans le cœur. Longueur 1,4 / 1,9 / 2,4 blocs (niveau I / II / III) à l'arrêt, jusqu'à x2,2 avec la vitesse (pleine longueur vers 120 km/h).
+  La flamme **pulse** (deux fréquences + scintillement à chaque tick) et ses anneaux ondulent (turbulence) ; elle monte en 3 ticks à l'allumage et retombe en 4 à l'arrêt.
+- **Lueur** additive à la sortie. **Halo de chaleur** : l'image derrière le jet est recopiée puis redessinée avec un léger décalage ondulant, ce qui déforme
+  vraiment l'air au-dessus et au bout de la flamme (jusqu'à 40 blocs). Coupé automatiquement avec un pack de shaders (Oculus) ou en graphismes « Fabulous ! »
+  (l'image n'y est pas accessible) ; en cas d'erreur du pilote il se désactive seul et les flammes restent.
+- **Backfire** au démarrage et à l'arrêt : boule de feu, gerbe d'étincelles qui rebondissent sur le sol, détonations (2 pops de plus à l'arrêt).
+  **Flash** de lumière dynamique si Sodium Dynamic Lights / LambDynamicLights est installé (le véhicule éclaire à 15 pendant le flash, à 10 pendant l'injection).
+- **Traînée** : des braises restent dans le monde derrière la voiture, plus un peu de fumée.
+- **Performances** : 700 particules au maximum pour tout le client (une voiture en nitro en utilise environ 60), jets dessinés jusqu'à 128 blocs,
+  braises / étincelles / sons jusqu'à 64 blocs.
+
+**Position des échappements**, dans l'ordre :
+1. réglage par modèle du serveur, `config/minenorth-echappements.json` (créé à la première connexion d'un joueur, avec un exemple) :
+   `"pack:modele": [[x, y, z], [x, y, z, dx, dy, dz]]` en blocs dans le repère du modèle (x à droite, y en haut, z vers l'avant : l'arrière est négatif),
+   direction du jet facultative (vers l'arrière par défaut). Après modification : **/mnbanc echappements recharger** (renvoyé à tous les joueurs).
+2. définition MTS du véhicule : particules de fumée du véhicule liées au moteur (`engine_piston...`, `engine_backfired...`) ou dirigées vers l'arrière,
+   puis `particleObjects` des emplacements (anciens `exhaustObjects`), puis particules des moteurs posés. Trouvé sur 37 des 46 voitures de New Cars
+   (les 9 autres sont électriques) et sur la plupart des Kaminari ; les échappements latéraux (Belroft) donnent une flamme sur le côté.
+3. repli : deux sorties à l'arrière d'après les boîtes de collision.
+
+**/mnbanc echappements info** (OP, à moins de 8 blocs d'un véhicule) : clé du modèle et sorties utilisées (fichier ou pack MTS).
+
+Le protocole réseau passe à **8** (nouveau paquet des réglages d'échappements) : serveur et clients doivent avoir ce jar. Aperçu hors-jeu du rendu :
+`apercu-nitro-flammes.gif` (non versionné).
+
